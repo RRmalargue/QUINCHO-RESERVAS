@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Reserva turnos para El Quincho. Consulta disponibilidad de turnos Mañana y Noche, mira nuestras instalaciones y reserva al instante por WhatsApp.">
+  <title>El Quincho - Reservas</title>
+  
+  <!-- Favicon y PWA -->
+  <link rel="icon" href="./assets/logo.jpg" type="image/jpeg">
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#d97706">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="./assets/logo.jpg">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome para Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Estilos Personalizados -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Encabezado / Brand -->
+  <header class="app-header">
+    <div class="brand-container">
+      <img src="./assets/logo.jpg" alt="El Quincho Logo" class="brand-logo" id="headerLogo">
+      <div class="brand-text">
+        <h1>El Quincho</h1>
+        <p>Luxury BBQ Villa & Pool</p>
+      </div>
+    </div>
+    <div class="status-indicator">
+      <span class="status-dot"></span>
+      <span class="status-label">Online</span>
+    </div>
+  </header>
+
+  <!-- Contenido Principal -->
+  <main class="app-main">
+
+    <!-- SECCIÓN: INICIO (SHOWCASE) -->
+    <section id="home-section" class="tab-content active">
+      <!-- Carrusel de fotos -->
+      <div class="carousel-container">
+        <div class="carousel-track">
+          <div class="carousel-slide active">
+            <img src="./assets/quincho-main.jpg" alt="Instalaciones del Quincho">
+            <div class="slide-caption">
+              <h3>Salón Moderno & Parrilla</h3>
+              <p>Espacio climatizado con asador profesional y mesa para 50 personas.</p>
+            </div>
+          </div>
+          <div class="carousel-slide">
+            <img src="./assets/quincho-pool.jpg" alt="Piscina y Jardín del Quincho">
+            <div class="slide-caption">
+              <h3>Piscina & Solárium</h3>
+              <p>Hermoso parque iluminado con pileta cristalina y deck de madera.</p>
+            </div>
+          </div>
+        </div>
+        <button class="carousel-control prev" onclick="moveCarousel(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+        <button class="carousel-control next" onclick="moveCarousel(1)"><i class="fa-solid fa-chevron-right"></i></button>
+        <div class="carousel-indicators">
+          <span class="indicator active" onclick="setCarouselSlide(0)"></span>
+          <span class="indicator" onclick="setCarouselSlide(1)"></span>
+        </div>
+      </div>
+
+      <!-- Promoción Destacada -->
+      <div class="promo-card glow-card">
+        <div class="promo-badge">PROMO SEMANAL</div>
+        <div class="promo-info">
+          <h3>Lunes a Jueves Especial</h3>
+          <p>Alquila tu turno con un 20% de descuento y la piscina climatizada sin cargo extra.</p>
+        </div>
+        <button class="btn btn-primary" onclick="switchTab('calendar-section')">
+          <i class="fa-regular fa-calendar-check"></i> Reservar Ahora
+        </button>
+      </div>
+
+      <!-- Especificaciones / Servicios -->
+      <h2 class="section-title">Nuestros Servicios</h2>
+      <div class="services-grid">
+        <div class="service-card">
+          <div class="service-icon"><i class="fa-solid fa-people-group"></i></div>
+          <h4>Capacidad</h4>
+          <p>Cómodo para eventos de hasta 50 invitados con vajilla completa.</p>
+        </div>
+        <div class="service-card">
+          <div class="service-icon"><i class="fa-solid fa-fire-burner"></i></div>
+          <h4>Asador Premium</h4>
+          <p>Parrilla gigante, estaca, horno de barro y utensilios profesionales.</p>
+        </div>
+        <div class="service-card">
+          <div class="service-icon"><i class="fa-solid fa-swimming-pool"></i></div>
+          <h4>Piscina e Iluminación</h4>
+          <p>Pileta con solárium y luces LED nocturnas en todo el parque.</p>
+        </div>
+        <div class="service-card">
+          <div class="service-icon"><i class="fa-solid fa-snowflake"></i></div>
+          <h4>Confort</h4>
+          <p>Aire acondicionado frío/calor, WiFi de alta velocidad y Smart TV.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN: CALENDARIO DE RESERVAS -->
+    <section id="calendar-section" class="tab-content">
+      <div class="intro-box">
+        <h2>Disponibilidad del Quincho</h2>
+        <p>Selecciona una fecha en el calendario para ver los turnos disponibles y realizar tu reserva.</p>
+      </div>
+
+      <!-- Calendario Interactivo -->
+      <div class="calendar-wrapper card">
+        <div class="calendar-header">
+          <button class="calendar-btn" id="prev-month-btn"><i class="fa-solid fa-chevron-left"></i></button>
+          <h3 id="calendar-month-year">Agosto 2026</h3>
+          <button class="calendar-btn" id="next-month-btn"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+        <div class="calendar-weekdays">
+          <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
+        </div>
+        <div class="calendar-days" id="calendar-days-grid">
+          <!-- Se autogenera con JS -->
+        </div>
+      </div>
+
+      <!-- Leyenda del Calendario -->
+      <div class="calendar-legend">
+        <span class="legend-item"><span class="legend-dot day-avail"></span>Mañana Disponible (Amarillo)</span>
+        <span class="legend-item"><span class="legend-dot night-avail"></span>Noche Disponible (Celeste)</span>
+        <span class="legend-item"><span class="legend-dot booked"></span>Reservado (Rojo)</span>
+      </div>
+
+      <!-- Detalle de Turnos del Día Seleccionado -->
+      <div id="day-details-box" class="day-details-box card hidden">
+        <h3 id="selected-day-title">Sábado, 15 de Agosto</h3>
+        
+        <div class="slots-container">
+          <!-- Turno Mañana -->
+          <div class="slot-row" id="slot-day-row">
+            <div class="slot-info">
+              <span class="slot-name"><i class="fa-regular fa-sun"></i> Turno Mañana</span>
+              <span class="slot-time">10:00 hs a 19:00 hs</span>
+            </div>
+            <div class="slot-action">
+              <span class="badge badge-success" id="slot-day-status">Disponible</span>
+              <button class="btn btn-sm btn-outline-primary" id="slot-day-btn" onclick="openBookingForm('day')">Reservar</button>
+            </div>
+          </div>
+
+          <!-- Turno Noche -->
+          <div class="slot-row" id="slot-night-row">
+            <div class="slot-info">
+              <span class="slot-name"><i class="fa-regular fa-moon"></i> Turno Noche</span>
+              <span class="slot-time">20:30 hs a 04:30 hs (Día sig.)</span>
+            </div>
+            <div class="slot-action">
+              <span class="badge badge-success" id="slot-night-status">Disponible</span>
+              <button class="btn btn-sm btn-outline-primary" id="slot-night-btn" onclick="openBookingForm('night')">Reservar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Formulario de Reserva -->
+      <div id="booking-modal" class="modal-backdrop hidden">
+        <div class="modal-content card">
+          <div class="modal-header">
+            <h3>Solicitud de Reserva</h3>
+            <button class="close-btn" onclick="closeBookingModal()"><i class="fa-solid fa-times"></i></button>
+          </div>
+          <form id="booking-form" onsubmit="handleBookingSubmit(event)">
+            <input type="hidden" id="form-date">
+            <input type="hidden" id="form-slot">
+
+            <div class="form-group">
+              <label>Fecha Seleccionada</label>
+              <input type="text" id="form-display-date" readonly class="form-control-readonly">
+            </div>
+
+            <div class="form-group">
+              <label>Turno Seleccionado</label>
+              <input type="text" id="form-display-slot" readonly class="form-control-readonly">
+            </div>
+
+            <div class="form-group">
+              <label for="client-name">Tu Nombre y Apellido <span class="required">*</span></label>
+              <div class="input-wrapper">
+                <i class="fa-regular fa-user"></i>
+                <input type="text" id="client-name" required placeholder="Ej: Pedro Gómez" class="form-control">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="client-phone">Número de WhatsApp <span class="required">*</span></label>
+              <div class="input-wrapper">
+                <i class="fa-brands fa-whatsapp"></i>
+                <input type="tel" id="client-phone" required placeholder="Ej: +54 9 11 1234 5678" class="form-control">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="client-guests">Cantidad de Invitados</label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-people-group"></i>
+                <input type="number" id="client-guests" min="1" max="60" placeholder="Ej: 30" class="form-control">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="client-notes">Mensaje o Consulta adicional</label>
+              <div class="input-wrapper">
+                <i class="fa-regular fa-comment"></i>
+                <textarea id="client-notes" placeholder="Ej: ¿Hay vajilla para niños?" class="form-control" rows="3"></textarea>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-success btn-block">
+              <i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN: ADMIN (CONTROL) -->
+    <section id="admin-section" class="tab-content">
+      <!-- Formulario Login -->
+      <div id="admin-login-box" class="admin-login-box card">
+        <div class="login-header">
+          <i class="fa-solid fa-shield-halved"></i>
+          <h2>Acceso Propietario</h2>
+          <p>Ingresa la contraseña para gestionar las reservas del Quincho.</p>
+        </div>
+        <form id="admin-login-form" onsubmit="handleAdminLogin(event)">
+          <div class="form-group">
+            <label for="admin-password">Contraseña</label>
+            <div class="input-wrapper">
+              <i class="fa-solid fa-lock"></i>
+              <input type="password" id="admin-password" required placeholder="Ingresar contraseña" class="form-control">
+            </div>
+            <span class="error-msg hidden" id="login-error">Contraseña incorrecta. Prueba con "admin123"</span>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Ingresar</button>
+        </form>
+      </div>
+
+      <!-- Panel Admin (Oculto hasta Login) -->
+      <div id="admin-panel" class="admin-panel hidden">
+        <div class="admin-header-row">
+          <h2>Panel de Administración</h2>
+          <button class="btn btn-sm btn-outline-danger" onclick="handleAdminLogout()">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Salir
+          </button>
+        </div>
+
+        <div class="grid-admin">
+          <!-- Crear Reserva Directa -->
+          <div class="card">
+            <h3><i class="fa-solid fa-plus-circle"></i> Nueva Reserva Manual</h3>
+            <form id="admin-reserve-form" onsubmit="handleAdminManualBooking(event)">
+              <div class="form-group">
+                <label for="admin-date">Fecha</label>
+                <input type="date" id="admin-date" required class="form-control">
+              </div>
+              <div class="form-group">
+                <label for="admin-slot">Turno</label>
+                <select id="admin-slot" class="form-control" required>
+                  <option value="day">Turno Mañana (10:00 - 19:00)</option>
+                  <option value="night">Turno Noche (20:30 - 04:30)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="admin-name">Nombre del Cliente</label>
+                <input type="text" id="admin-name" required placeholder="Ej: Pedro Gómez" class="form-control">
+              </div>
+              <div class="form-group">
+                <label for="admin-phone">Teléfono de WhatsApp</label>
+                <input type="tel" id="admin-phone" placeholder="Ej: +5492612345678" class="form-control">
+              </div>
+              <div class="form-group">
+                <label for="admin-total-price">Monto Total ($)</label>
+                <input type="number" id="admin-total-price" required placeholder="Ej: 50000" class="form-control" min="0">
+              </div>
+              <div class="form-group">
+                <label for="admin-deposit">Seña Entregada ($)</label>
+                <input type="number" id="admin-deposit" required placeholder="Ej: 20000" class="form-control" min="0" value="0">
+              </div>
+              <button type="submit" class="btn btn-success btn-block">Agregar Reserva</button>
+            </form>
+          </div>
+
+          <!-- Base de datos de Reservas Activas -->
+          <div class="card">
+            <h3><i class="fa-solid fa-database"></i> Gestión de Sincronización</h3>
+            <p class="text-secondary text-sm">
+              Dado que GitHub Pages es estático, para guardar permanentemente tus reservas en la web pública tienes dos opciones:
+            </p>
+            
+            <div class="sync-options">
+              <!-- Opción Local / Descarga -->
+              <div class="sync-option-card">
+                <h4>Opción A: Archivo Local</h4>
+                <p class="text-sm">Descarga el archivo actual de reservas y arrástralo a tu repositorio en GitHub para publicarlo.</p>
+                <button class="btn btn-outline-primary btn-sm btn-block" onclick="downloadBookingsJSON()">
+                  <i class="fa-solid fa-download"></i> Descargar bookings.json
+                </button>
+              </div>
+
+              <!-- Opción Supabase -->
+              <div class="sync-option-card">
+                <h4>Opción B: Base de datos en la nube</h4>
+                <p class="text-sm">Conéctate a Supabase gratis para que todo se actualice en tiempo real sin subir archivos.</p>
+                <form id="supabase-config-form" onsubmit="handleSupabaseSave(event)">
+                  <div class="form-group">
+                    <input type="text" id="sb-url" placeholder="Supabase URL" class="form-control form-control-sm">
+                  </div>
+                  <div class="form-group">
+                    <input type="password" id="sb-key" placeholder="Supabase Anon Key" class="form-control form-control-sm">
+                  </div>
+                  <button type="submit" class="btn btn-primary btn-sm btn-block">Guardar Conexión</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lista de Reservas Registradas -->
+        <div class="card table-card">
+          <h3><i class="fa-solid fa-list-check"></i> Listado de Reservas</h3>
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Turno</th>
+                  <th>Cliente</th>
+                  <th>Total</th>
+                  <th>Seña</th>
+                  <th>Resta</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="admin-bookings-list">
+                <!-- Se inyecta con JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Barra de Navegación Inferior Móvil -->
+  <nav class="app-nav">
+    <button class="nav-item active" onclick="switchTab('home-section')" id="nav-home-section">
+      <i class="fa-solid fa-house"></i>
+      <span>Inicio</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('calendar-section')" id="nav-calendar-section">
+      <i class="fa-solid fa-calendar-days"></i>
+      <span>Calendario</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('admin-section')" id="nav-admin-section">
+      <i class="fa-solid fa-user-gear"></i>
+      <span>Admin</span>
+    </button>
+  </nav>
+
+  <!-- Script Principal de la Aplicación -->
+  <script src="app.js"></script>
+</body>
+</html>

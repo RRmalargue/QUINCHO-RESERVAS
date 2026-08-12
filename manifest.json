@@ -1,0 +1,18 @@
+{
+  "name": "El Quincho - Reservas",
+  "short_name": "El Quincho",
+  "description": "Aplicación de reservas y consultas para el Quincho.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#121214",
+  "theme_color": "#d97706",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./assets/logo.jpg",
+      "sizes": "1024x1024",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
