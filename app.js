@@ -17,11 +17,22 @@ let supabaseKey = localStorage.getItem("sb_key") || "";
 
 // Inicialización al cargar la página
 document.addEventListener("DOMContentLoaded", () => {
-  // Registro del Service Worker para PWA
-  if ('serviceWorker' in navigator) {
+  // Registrar el Service Worker solo si NO es un entorno local (localhost, 127.0.0.1 o file://)
+  const isLocal = window.location.hostname === 'localhost' || 
+                  window.location.hostname === '127.0.0.1' || 
+                  window.location.protocol === 'file:';
+  if ('serviceWorker' in navigator && !isLocal) {
     navigator.serviceWorker.register('./sw.js')
       .then(reg => console.log('Service Worker registrado con éxito', reg))
       .catch(err => console.warn('Error al registrar el Service Worker', err));
+  } else if ('serviceWorker' in navigator && isLocal) {
+    // Desregistrar cualquier service worker activo para evitar el cacheo durante pruebas locales
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (let registration of registrations) {
+        registration.unregister();
+      }
+    });
+    console.log('Modo de prueba local detectado: Cacheo PWA desactivado para desarrollo rápido.');
   }
 
   // Cargar Reservas
@@ -88,18 +99,28 @@ async function loadBookings() {
     return;
   }
 
-  // 3. Cargar desde bookings.json como último recurso (inicial de repositorio)
+  // 3. Cargar desde bookings.json o usar datos iniciales en duro como respaldo absoluto (ideal para pruebas directas)
+  const defaultMockBookings = [
+    { "date": "2026-08-15", "slot": "night", "name": "Pedro", "phone": "5492611234567", "totalPrice": 50000, "deposit": 20000 },
+    { "date": "2026-08-16", "slot": "day", "name": "Juan", "phone": "5492617654321", "totalPrice": 40000, "deposit": 40000 },
+    { "date": "2026-08-22", "slot": "night", "name": "María", "totalPrice": 60000, "deposit": 0 },
+    { "date": "2026-08-23", "slot": "day", "name": "Carlos", "phone": "5492615555555", "totalPrice": 55000, "deposit": 15000 }
+  ];
+
   try {
     const response = await fetch("./bookings.json");
     if (response.ok) {
       bookings = await response.json();
       console.log("Reservas cargadas desde bookings.json");
-      localStorage.setItem("local_bookings_backup", JSON.stringify(bookings));
+    } else {
+      bookings = defaultMockBookings;
+      console.log("No se pudo obtener bookings.json de forma remota, cargando respaldo local");
     }
   } catch (err) {
-    console.error("No se pudo cargar el archivo bookings.json inicial", err);
-    bookings = [];
+    console.warn("Entorno local sin servidor (CORS) detectado, cargando reservas de respaldo:", err);
+    bookings = defaultMockBookings;
   }
+  localStorage.setItem("local_bookings_backup", JSON.stringify(bookings));
 }
 
 // Guardar reserva (Local o Supabase)

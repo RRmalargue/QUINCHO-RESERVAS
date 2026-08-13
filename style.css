@@ -516,7 +516,7 @@ h1, h2, h3, h4 {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 10px;
   cursor: pointer;
   position: relative;
   transition: var(--transition);
@@ -531,47 +531,42 @@ h1, h2, h3, h4 {
   background: transparent !important;
 }
 
-/* Clases de gradiente para dividir el día verticalmente: Mañana (amarillo) y Noche (celeste) */
+/* Clases de gradiente para dividir el día verticalmente: Mañana (amarillo pastel) y Noche (celeste pastel), Reservado en Rojo Fosforescente */
 .day-free-night-free {
-  background: linear-gradient(90deg, #fbbf24 50%, #38bdf8 50%) !important;
+  background: linear-gradient(90deg, #fef08a 50%, #bae6fd 50%) !important;
 }
 
 .day-booked-night-free {
-  background: linear-gradient(90deg, #475569 50%, #38bdf8 50%) !important;
+  background: linear-gradient(90deg, #ff073a 50%, #bae6fd 50%) !important;
 }
 
 .day-free-night-booked {
-  background: linear-gradient(90deg, #fbbf24 50%, #475569 50%) !important;
+  background: linear-gradient(90deg, #fef08a 50%, #ff073a 50%) !important;
 }
 
 .day-booked-night-booked {
-  background: linear-gradient(90deg, #475569 50%, #475569 50%) !important;
+  background: linear-gradient(90deg, #ff073a 50%, #ff073a 50%) !important;
 }
 
 .calendar-day .day-number {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+  color: #0f172a; /* Texto oscuro y vivo para resaltar sobre los tonos pastel y rojo flúor */
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   z-index: 2;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   pointer-events: none;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.5); /* Sutil contorno para mayor contraste */
 }
 
 .calendar-day.selected {
-  border-color: var(--accent);
+  border-color: #fff !important;
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .calendar-day.selected .day-number {
-  background: var(--accent);
-  color: #fff;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 /* Leyenda */
@@ -601,9 +596,9 @@ h1, h2, h3, h4 {
   border-radius: 50%;
 }
 
-.legend-dot.day-avail { background-color: #fbbf24; }
-.legend-dot.night-avail { background-color: #38bdf8; }
-.legend-dot.booked { background-color: #475569; }
+.legend-dot.day-avail { background-color: #fef08a; }
+.legend-dot.night-avail { background-color: #bae6fd; }
+.legend-dot.booked { background-color: #ff073a; }
 
 /* Caja de Detalles del Día */
 .day-details-box {
