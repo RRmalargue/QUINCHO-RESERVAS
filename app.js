@@ -7,9 +7,19 @@ const OWNER_PHONE = "5492612345678"; // Reemplaza con tu número completo (códi
 
 // Estado Global de la Aplicación
 let bookings = [];
+let expenses = []; // Gastos de limpieza, servicios, mantenimiento, etc.
 let currentDate = new Date();
 let selectedDateStr = null;
 let currentCarouselIndex = 0;
+
+// Feriados nacionales en Argentina
+let holidays = [];
+let holidayNames = {};
+let loadedHolidaysYear = null;
+let adminSelectedDateStr = null; // Guardará la fecha seleccionada en el panel admin
+let isEditMode = false;
+let editOriginalDate = null;
+let editOriginalSlot = null;
 
 // Configuración de Supabase (se carga de localStorage si existe)
 let supabaseUrl = localStorage.getItem("sb_url") || "";
@@ -38,15 +48,39 @@ document.addEventListener("DOMContentLoaded", () => {
   // Cargar Reservas
   initApp();
 
-  // Controladores del Calendario
+  // Controladores del Calendario Cliente
   document.getElementById("prev-month-btn").addEventListener("click", () => {
     currentDate.setMonth(currentDate.getMonth() - 1);
     renderCalendar();
+    renderAdminCalendar();
+    renderAdminBookings(); // Filtrar y refrescar listado
   });
   document.getElementById("next-month-btn").addEventListener("click", () => {
     currentDate.setMonth(currentDate.getMonth() + 1);
     renderCalendar();
+    renderAdminCalendar();
+    renderAdminBookings(); // Filtrar y refrescar listado
   });
+
+  // Controladores del Calendario Admin
+  const adminPrevBtn = document.getElementById("admin-prev-month-btn");
+  const adminNextBtn = document.getElementById("admin-next-month-btn");
+  if (adminPrevBtn) {
+    adminPrevBtn.addEventListener("click", () => {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+      renderCalendar();
+      renderAdminCalendar();
+      renderAdminBookings(); // Filtrar y refrescar listado
+    });
+  }
+  if (adminNextBtn) {
+    adminNextBtn.addEventListener("click", () => {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      renderCalendar();
+      renderAdminCalendar();
+      renderAdminBookings(); // Filtrar y refrescar listado
+    });
+  }
 
   // Autologin si ya estaba logueado
   if (localStorage.getItem("admin_logged") === "true") {
@@ -61,8 +95,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // --- CARGA DE DATOS (LOCAL O SUPABASE) ---
 async function initApp() {
+  await initCarouselGallery();
   await loadBookings();
+  loadExpenses(); // Cargar Gastos
   renderCalendar();
+  renderAdminCalendar(); // Cargar Calendario Admin
+  
+  // Inicializar fecha de reserva manual y gasto con el día de hoy
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+  
+  if (document.getElementById("admin-date")) document.getElementById("admin-date").value = todayStr;
+  if (document.getElementById("expense-date")) document.getElementById("expense-date").value = todayStr;
+  
+  // Renderizar listados y balances financieros
+  renderExpenses();
+  populateFinanceYears();
+  updateFinanceSummary();
   
   // Cargar campos de Supabase si existen
   if (supabaseUrl) document.getElementById("sb-url").value = supabaseUrl;
@@ -228,13 +280,19 @@ function setCarouselSlide(index) {
 }
 
 // --- GENERACIÓN DEL CALENDARIO ---
-function renderCalendar() {
+async function renderCalendar() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   
   // Nombre del mes y año en el encabezado
   const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
   document.getElementById("calendar-month-year").innerText = `${monthNames[month]} ${year}`;
+
+  // Cargar feriados si cambiamos de año
+  if (loadedHolidaysYear !== year) {
+    loadedHolidaysYear = year;
+    await fetchHolidays(year);
+  }
 
   const grid = document.getElementById("calendar-days-grid");
   grid.innerHTML = "";
@@ -256,14 +314,27 @@ function renderCalendar() {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const dayEl = document.createElement("div");
     dayEl.classList.add("calendar-day");
-    dayEl.innerHTML = `<span class="day-number">${day}</span>`;
-    
+
+    // Determinar si es fin de semana (Domingo o Sábado)
+    const dayOfWeek = new Date(year, month, day).getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    if (isWeekend) {
+      dayEl.classList.add("weekend");
+    }
+
+    // Determinar si es feriado en Argentina
+    const isHoliday = holidays.includes(dateStr);
+    if (isHoliday) {
+      dayEl.classList.add("holiday");
+      dayEl.setAttribute("title", holidayNames[dateStr] || "Feriado");
+    }
+
     // Buscar reservas para este día
     const dayBookings = bookings.filter(b => b.date === dateStr);
     const dayReserved = dayBookings.some(b => b.slot === "day");
     const nightReserved = dayBookings.some(b => b.slot === "night");
 
-    // Clases del contenedor según reservas (gradiente dividido)
+    // Asignar clases de gradiente dividido en diagonal (135deg)
     if (dayReserved && nightReserved) {
       dayEl.classList.add("day-booked-night-booked");
     } else if (dayReserved) {
@@ -273,6 +344,8 @@ function renderCalendar() {
     } else {
       dayEl.classList.add("day-free-night-free");
     }
+
+    dayEl.innerHTML = `<span class="day-number">${day}</span>`;
 
     // Si es el día seleccionado actualmente
     if (selectedDateStr === dateStr) {
@@ -286,6 +359,9 @@ function renderCalendar() {
       dayEl.classList.add("selected");
       selectedDateStr = dateStr;
       showDayDetails(dateStr);
+      
+      // Sincronizar automáticamente la fecha en el formulario de administración
+      document.getElementById("admin-date").value = dateStr;
     });
 
     grid.appendChild(dayEl);
@@ -422,6 +498,10 @@ function showAdminPanel() {
   document.getElementById("admin-login-box").classList.add("hidden");
   document.getElementById("admin-panel").classList.remove("hidden");
   renderAdminBookings();
+  renderAdminCalendar(); // Generar calendario admin al entrar
+  renderExpenses();
+  populateFinanceYears();
+  updateFinanceSummary();
 }
 
 // Logout
@@ -431,19 +511,45 @@ function handleAdminLogout() {
   document.getElementById("admin-login-box").classList.remove("hidden");
 }
 
-// Listado de reservas en el panel admin
+// Listado de reservas en el panel admin (Filtrado por el mes/año en pantalla y desde hoy hacia adelante)
 function renderAdminBookings() {
   const tbody = document.getElementById("admin-bookings-list");
+  if (!tbody) return;
   tbody.innerHTML = "";
 
+  const viewYear = currentDate.getFullYear();
+  const viewMonth = currentDate.getMonth() + 1; // 1-indexed
+
+  // Obtener fecha de hoy en formato local YYYY-MM-DD
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  // Filtrar reservas: del mes/año en pantalla y que sean de hoy en adelante
+  const filteredBookings = bookings.filter(b => {
+    const [y, m, d] = b.date.split("-").map(Number);
+    
+    // Primero, debe pertenecer al mes/año en pantalla
+    if (y !== viewYear || m !== viewMonth) return false;
+    
+    // Segundo, solo mostrar eventos de hoy inclusive hacia el futuro
+    return b.date >= todayStr;
+  });
+
   // Ordenar reservas por fecha y luego por turno (mañana antes de noche)
-  const sortedBookings = [...bookings].sort((a, b) => {
+  const sortedBookings = [...filteredBookings].sort((a, b) => {
     if (a.date !== b.date) return a.date.localeCompare(b.date);
     return a.slot.localeCompare(b.slot);
   });
 
+  // Actualizar el título de la tarjeta para indicar qué mes estamos viendo y que es a partir de hoy
+  const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  const listTitle = document.getElementById("admin-bookings-title");
+  if (listTitle) {
+    listTitle.innerHTML = `<i class="fa-solid fa-list-check"></i> Reservas de ${monthNames[currentDate.getMonth()]} ${viewYear} (Desde hoy)`;
+  }
+
   if (sortedBookings.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary">No hay reservas registradas.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary">No hay reservas activas/futuras para este mes.</td></tr>`;
     return;
   }
 
@@ -458,8 +564,9 @@ function renderAdminBookings() {
     const balance = (b.totalPrice !== undefined && b.deposit !== undefined) ? `$${b.totalPrice - b.deposit}` : "-";
 
     // Crear link de WhatsApp
-    const waLink = b.phone ? `<a href="https://wa.me/${b.phone.replace(/[^0-9]/g, '')}" target="_blank" style="color: #25d366; margin-left: 8px; font-size: 14px;" title="Chatear por WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>` : "";
-    const clientName = `${b.name}${waLink}`;
+    const waLink = b.phone && b.phone !== "GCal" ? `<a href="https://wa.me/${b.phone.replace(/[^0-9]/g, '')}" target="_blank" style="color: #25d366; margin-left: 8px; font-size: 14px;" title="Chatear por WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>` : "";
+    const notesDiv = b.notes ? `<div class="text-muted text-xs" style="margin-top: 4px; font-style: italic;"><i class="fa-regular fa-comment-dots"></i> ${b.notes}</div>` : "";
+    const clientName = `${b.name}${waLink}${notesDiv}`;
 
     tr.innerHTML = `
       <td><strong>${formattedDate}</strong></td>
@@ -469,9 +576,14 @@ function renderAdminBookings() {
       <td>${deposit}</td>
       <td><span style="font-weight: 600; color: ${b.totalPrice - b.deposit > 0 ? 'var(--warning)' : 'var(--success)'}">${balance}</span></td>
       <td>
-        <button class="btn btn-sm btn-outline-danger" onclick="deleteBookingAdmin('${b.date}', '${b.slot}')">
-          <i class="fa-regular fa-trash-can"></i>
-        </button>
+        <div class="btn-group-row">
+          <button class="btn btn-sm btn-outline-primary" onclick="editBookingAdmin('${b.date}', '${b.slot}')" title="Editar Reserva">
+            <i class="fa-regular fa-pen-to-square"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteBookingAdmin('${b.date}', '${b.slot}')" title="Eliminar Reserva">
+            <i class="fa-regular fa-trash-can"></i>
+          </button>
+        </div>
       </td>
     `;
     tbody.appendChild(tr);
@@ -483,7 +595,12 @@ async function deleteBookingAdmin(date, slot) {
   if (confirm(`¿Seguro que deseas eliminar la reserva del ${date.split("-").reverse().join("/")} (${slot === 'day' ? 'Mañana' : 'Noche'})?`)) {
     await deleteBooking(date, slot);
     renderAdminBookings();
+    renderAdminCalendar(); // Refrescar calendario admin
     renderCalendar();
+    
+    // Actualizar balances financieros
+    updateFinanceSummary();
+    populateFinanceYears();
     
     // Ocultar o refrescar el panel de detalles si estaba mostrando ese día
     if (selectedDateStr === date) {
@@ -492,7 +609,7 @@ async function deleteBookingAdmin(date, slot) {
   }
 }
 
-// Agregar reserva manual (Bloqueo de fechas)
+// Agregar o editar reserva manual (Bloqueo de fechas)
 async function handleAdminManualBooking(event) {
   event.preventDefault();
   const date = document.getElementById("admin-date").value;
@@ -501,9 +618,14 @@ async function handleAdminManualBooking(event) {
   const phone = document.getElementById("admin-phone").value.trim();
   const totalPriceVal = parseInt(document.getElementById("admin-total-price").value) || 0;
   const depositVal = parseInt(document.getElementById("admin-deposit").value) || 0;
+  const notesVal = document.getElementById("admin-notes").value.trim();
 
-  // Validar si ya está ocupado
-  const exists = bookings.some(b => b.date === date && b.slot === slot);
+  // Validar si ya está ocupado (excluyendo el registro que estamos editando si aplica)
+  const exists = bookings.some(b => 
+    b.date === date && 
+    b.slot === slot && 
+    !(isEditMode && editOriginalDate === date && editOriginalSlot === slot)
+  );
   if (exists) {
     alert("Este turno ya se encuentra reservado.");
     return;
@@ -513,22 +635,41 @@ async function handleAdminManualBooking(event) {
     date, 
     slot, 
     name, 
-    phone,
+    phone, 
     totalPrice: totalPriceVal, 
-    deposit: depositVal 
+    deposit: depositVal,
+    notes: notesVal
   };
-  await saveBooking(newBooking);
+
+  if (isEditMode) {
+    // Borrar original y registrar nuevo
+    await deleteBooking(editOriginalDate, editOriginalSlot);
+    await saveBooking(newBooking);
+    cancelAdminEdit();
+    alert("Reserva modificada correctamente.");
+  } else {
+    await saveBooking(newBooking);
+    alert("Reserva manual agregada correctamente.");
+  }
 
   // Limpiar campos y refrescar
-  document.getElementById("admin-date").value = "";
   document.getElementById("admin-name").value = "";
   document.getElementById("admin-phone").value = "";
   document.getElementById("admin-total-price").value = "";
   document.getElementById("admin-deposit").value = "0";
+  document.getElementById("admin-notes").value = "";
   
+  // Ocultar campos colapsables
+  document.getElementById("admin-booking-fields-collapsible").classList.add("hidden");
+  adminSelectedDateStr = null;
+
   renderAdminBookings();
+  renderAdminCalendar(); // Refrescar calendario admin
   renderCalendar();
-  alert("Reserva manual agregada correctamente.");
+  
+  // Actualizar balances financieros
+  updateFinanceSummary();
+  populateFinanceYears();
 }
 
 // Descargar bookings.json para GitHub
@@ -557,3 +698,575 @@ function handleSupabaseSave(event) {
   alert("Configuración de base de datos en la nube guardada. Intentando recargar...");
   initApp();
 }
+
+// --- GESTIÓN FINANCIERA Y DE GASTOS ---
+
+// Cargar Gastos desde LocalStorage con valores iniciales si no existen
+function loadExpenses() {
+  const localData = localStorage.getItem("local_expenses_backup");
+  if (localData) {
+    expenses = JSON.parse(localData);
+  } else {
+    expenses = [
+      { id: 1, date: "2026-08-10", category: "Limpieza", desc: "Pago limpieza inicial", amount: 4000 },
+      { id: 2, date: "2026-08-11", category: "Mantenimiento", desc: "Compra cloro piscina", amount: 3500 }
+    ];
+    saveExpenses();
+  }
+}
+
+// Guardar Gastos en LocalStorage
+function saveExpenses() {
+  localStorage.setItem("local_expenses_backup", JSON.stringify(expenses));
+}
+
+// Rellenar dinámicamente los años con transacciones en el selector financiero
+function populateFinanceYears() {
+  const yearSelect = document.getElementById("finance-year");
+  if (!yearSelect) return;
+  
+  const years = new Set();
+  years.add(new Date().getFullYear());
+  
+  bookings.forEach(b => {
+    const y = parseInt(b.date.split("-")[0]);
+    if (y) years.add(y);
+  });
+  
+  expenses.forEach(e => {
+    const y = parseInt(e.date.split("-")[0]);
+    if (y) years.add(y);
+  });
+  
+  const currentVal = yearSelect.value;
+  yearSelect.innerHTML = "";
+  
+  Array.from(years).sort((a, b) => b - a).forEach(y => {
+    const opt = document.createElement("option");
+    opt.value = y;
+    opt.innerText = y;
+    yearSelect.appendChild(opt);
+  });
+  
+  if (currentVal && Array.from(years).map(String).includes(currentVal)) {
+    yearSelect.value = currentVal;
+  } else {
+    yearSelect.value = new Date().getFullYear();
+  }
+}
+
+// Calcular y renderizar el Resumen de Ganancias del mes/año seleccionado
+function updateFinanceSummary() {
+  const yearSelect = document.getElementById("finance-year");
+  const monthSelect = document.getElementById("finance-month");
+  if (!yearSelect || !monthSelect) return;
+
+  const yearVal = parseInt(yearSelect.value);
+  const monthVal = monthSelect.value; // "all" o índice de mes "0" a "11"
+  
+  // Filtrar Reservas
+  let filteredBookings = bookings.filter(b => {
+    const [y, m, d] = b.date.split("-").map(Number);
+    if (y !== yearVal) return false;
+    if (monthVal !== "all" && (m - 1) !== parseInt(monthVal)) return false;
+    return true;
+  });
+  
+  // Filtrar Gastos
+  let filteredExpenses = expenses.filter(e => {
+    const [y, m, d] = e.date.split("-").map(Number);
+    if (y !== yearVal) return false;
+    if (monthVal !== "all" && (m - 1) !== parseInt(monthVal)) return false;
+    return true;
+  });
+  
+  // Calcular sumas
+  const totalIncome = filteredBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const netProfit = totalIncome - totalExpenses;
+  
+  // Actualizar estadísticas en UI
+  document.getElementById("stat-total-income").innerText = `$${totalIncome.toLocaleString()}`;
+  document.getElementById("stat-total-expenses").innerText = `$${totalExpenses.toLocaleString()}`;
+  
+  const netEl = document.getElementById("stat-net-profit");
+  netEl.innerText = `$${netProfit.toLocaleString()}`;
+  if (netProfit >= 0) {
+    netEl.style.color = "var(--success)";
+  } else {
+    netEl.style.color = "var(--danger)";
+  }
+}
+
+// Registrar un Gasto desde el formulario admin
+function handleAdminAddExpense(event) {
+  event.preventDefault();
+  const date = document.getElementById("expense-date").value;
+  const category = document.getElementById("expense-category").value;
+  const desc = document.getElementById("expense-desc").value.trim();
+  const amount = parseInt(document.getElementById("expense-amount").value) || 0;
+  
+  const newExpense = {
+    id: Date.now(),
+    date,
+    category,
+    desc,
+    amount
+  };
+  
+  expenses.push(newExpense);
+  saveExpenses();
+  
+  // Limpiar campos del formulario
+  document.getElementById("expense-desc").value = "";
+  document.getElementById("expense-amount").value = "";
+  
+  renderExpenses();
+  updateFinanceSummary();
+  populateFinanceYears();
+  alert("Gasto registrado correctamente.");
+}
+
+// Eliminar un Gasto
+function deleteExpense(id) {
+  if (confirm("¿Estás seguro de que deseas eliminar este gasto del historial?")) {
+    expenses = expenses.filter(e => e.id !== id);
+    saveExpenses();
+    
+    renderExpenses();
+    updateFinanceSummary();
+    populateFinanceYears();
+  }
+}
+
+// Renderizar la tabla de listado de gastos
+function renderExpenses() {
+  const tbody = document.getElementById("admin-expenses-list");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  
+  // Ordenar gastos por fecha descendiente
+  const sortedExpenses = [...expenses].sort((a, b) => b.date.localeCompare(a.date));
+  
+  if (sortedExpenses.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-secondary">No hay gastos registrados en el historial.</td></tr>`;
+    return;
+  }
+  
+  sortedExpenses.forEach(e => {
+    const tr = document.createElement("tr");
+    const formattedDate = e.date.split("-").reverse().join("/");
+    
+    tr.innerHTML = `
+      <td><strong>${formattedDate}</strong></td>
+      <td><span class="badge ${getCategoryBadgeClass(e.category)}">${e.category}</span></td>
+      <td>${e.desc}</td>
+      <td style="font-weight: 600; color: var(--danger)">$${e.amount}</td>
+      <td>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteExpense(${e.id})">
+          <i class="fa-regular fa-trash-can"></i>
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// Retorna la clase de estilo del badge según la categoría del gasto
+function getCategoryBadgeClass(cat) {
+  switch (cat) {
+    case "Limpieza": return "badge-success";
+    case "Mantenimiento": return "badge-danger";
+    case "Servicios": return "badge-warning";
+    default: return "badge-secondary";
+  }
+}
+
+// Descargar Gastos en formato JSON crudo
+function downloadExpensesJSON() {
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(expenses, null, 2));
+  const downloadAnchor = document.createElement("a");
+  downloadAnchor.setAttribute("href", dataStr);
+  downloadAnchor.setAttribute("download", "gastos.json");
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+}
+
+// Descargar reporte de Gastos en formato Excel (CSV)
+function downloadExpensesCSV() {
+  let csvContent = "\uFEFF"; // Añadir BOM UTF-8 para compatibilidad de acentos en Excel
+  csvContent += "Fecha,Categoría,Descripción,Monto ($)\n";
+  
+  expenses.forEach(e => {
+    const formattedDate = e.date.split("-").reverse().join("/");
+    const row = `"${formattedDate}","${e.category}","${e.desc}",${e.amount}`;
+    csvContent += row + "\n";
+  });
+  
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", "reporte_gastos_quincho.csv");
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+// Detecta imágenes adicionales subidas por el usuario en la carpeta assets (foto1.jpg, foto2.jpg, etc.)
+async function initCarouselGallery() {
+  const defaultSlides = [
+    { url: "./assets/quincho-main.jpg", title: "Salón & Parrilla", desc: "Espacio climatizado con asador profesional." },
+    { url: "./assets/quincho-pool.jpg", title: "Piscina & Parque", desc: "Hermoso parque iluminado con pileta cristalina." }
+  ];
+
+  // Escanear en paralelo por foto1.jpg hasta foto12.jpg
+  const maxPhotos = 12;
+  const scanPromises = [];
+
+  for (let i = 1; i <= maxPhotos; i++) {
+    const url = `./assets/foto${i}.jpg`;
+    scanPromises.push(
+      new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ url, title: `Instalaciones ${i}`, desc: "Vista de nuestro quincho para eventos." });
+        img.onerror = () => resolve(null);
+        img.src = url;
+      })
+    );
+  }
+
+  const scannedResults = await Promise.all(scanPromises);
+  const validScanned = scannedResults.filter(slide => slide !== null);
+
+  // Combinar los predeterminados con los escaneados
+  const allSlides = [...defaultSlides, ...validScanned];
+
+  // Si hay más fotos, regeneramos el carrusel
+  if (validScanned.length > 0) {
+    const track = document.getElementById("carousel-track");
+    const indicators = document.getElementById("carousel-indicators");
+    
+    if (track && indicators) {
+      track.innerHTML = "";
+      indicators.innerHTML = "";
+
+      allSlides.forEach((slide, index) => {
+        // Generar Slide
+        const slideEl = document.createElement("div");
+        slideEl.className = `carousel-slide ${index === 0 ? 'active' : ''}`;
+        slideEl.innerHTML = `
+          <img src="${slide.url}" alt="${slide.title}">
+          <div class="slide-caption">
+            <h3>${slide.title}</h3>
+            <p>${slide.desc}</p>
+          </div>
+        `;
+        track.appendChild(slideEl);
+
+        // Generar Indicador
+        const indEl = document.createElement("span");
+        indEl.className = `indicator ${index === 0 ? 'active' : ''}`;
+        indEl.addEventListener("click", () => setCarouselSlide(index));
+        indicators.appendChild(indEl);
+      });
+      
+      // Reiniciar index del carrusel
+      currentCarouselIndex = 0;
+    }
+  }
+}
+
+// Obtener feriados oficiales de Argentina desde la API o usar respaldo fijo
+async function fetchHolidays(year) {
+  try {
+    const response = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/AR`);
+    if (response.ok) {
+      const data = await response.json();
+      holidays = data.map(h => h.date);
+      holidayNames = {};
+      data.forEach(h => {
+        holidayNames[h.date] = h.localName;
+      });
+      console.log(`Feriados de Argentina para ${year} cargados con éxito:`, data.length);
+    } else {
+      throw new Error("Respuesta de API no exitosa");
+    }
+  } catch (err) {
+    console.warn("No se pudieron obtener los feriados desde la API, usando feriados básicos de respaldo", err);
+    // Respaldo de feriados nacionales fijos en Argentina
+    const fixedHolidays = [
+      { date: `${year}-01-01`, name: "Año Nuevo" },
+      { date: `${year}-03-24`, name: "Día de la Memoria" },
+      { date: `${year}-04-02`, name: "Día de Malvinas" },
+      { date: `${year}-05-01`, name: "Día del Trabajador" },
+      { date: `${year}-05-25`, name: "Revolución de Mayo" },
+      { date: `${year}-06-20`, name: "Día de la Bandera" },
+      { date: `${year}-07-09`, name: "Día de la Independencia" },
+      { date: `${year}-08-17`, name: "Paso a la Inmortalidad del Gral. San Martín" },
+      { date: `${year}-10-12`, name: "Día del Respeto a la Diversidad Cultural" },
+      { date: `${year}-11-20`, name: "Día de la Soberanía Nacional" },
+      { date: `${year}-12-08`, name: "Inmaculada Concepción" },
+      { date: `${year}-12-25`, name: "Navidad" }
+    ];
+    holidays = fixedHolidays.map(h => h.date);
+    holidayNames = {};
+    fixedHolidays.forEach(h => {
+      holidayNames[h.date] = h.name;
+    });
+  }
+}
+
+// --- CALENDARIO ADMINISTRADOR INTERACTIVO ---
+
+// Renderizar el calendario de reservas dentro del panel de administración
+async function renderAdminCalendar() {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  
+  // Nombre del mes y año en el encabezado del admin
+  const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  const headerEl = document.getElementById("admin-calendar-month-year");
+  if (headerEl) {
+    headerEl.innerText = `${monthNames[month]} ${year}`;
+  }
+
+  const grid = document.getElementById("admin-calendar-days-grid");
+  if (!grid) return;
+  grid.innerHTML = "";
+
+  // Primer día de la semana del mes (0 = Domingo, 1 = Lunes, etc.)
+  const firstDayIndex = new Date(year, month, 1).getDay();
+  // Cantidad de días del mes
+  const totalDays = new Date(year, month + 1, 0).getDate();
+
+  // Días vacíos para completar el inicio del mes
+  for (let i = 0; i < firstDayIndex; i++) {
+    const emptyDay = document.createElement("div");
+    emptyDay.classList.add("calendar-day", "empty");
+    grid.appendChild(emptyDay);
+  }
+
+  // Días válidos del mes
+  for (let day = 1; day <= totalDays; day++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dayEl = document.createElement("div");
+    dayEl.classList.add("calendar-day");
+
+    // Determinar si es fin de semana (Domingo o Sábado)
+    const dayOfWeek = new Date(year, month, day).getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    if (isWeekend) {
+      dayEl.classList.add("weekend");
+    }
+
+    // Determinar si es feriado en Argentina
+    const isHoliday = holidays.includes(dateStr);
+    if (isHoliday) {
+      dayEl.classList.add("holiday");
+      dayEl.setAttribute("title", holidayNames[dateStr] || "Feriado");
+    }
+
+    // Buscar reservas para este día
+    const dayBookings = bookings.filter(b => b.date === dateStr);
+    const dayReserved = dayBookings.some(b => b.slot === "day");
+    const nightReserved = dayBookings.some(b => b.slot === "night");
+
+    // Asignar clases de gradiente dividido en diagonal (135deg)
+    if (dayReserved && nightReserved) {
+      dayEl.classList.add("day-booked-night-booked");
+    } else if (dayReserved) {
+      dayEl.classList.add("day-booked-night-free");
+    } else if (nightReserved) {
+      dayEl.classList.add("day-free-night-booked");
+    } else {
+      dayEl.classList.add("day-free-night-free");
+    }
+
+    dayEl.innerHTML = `<span class="day-number">${day}</span>`;
+
+    // Si es el día seleccionado actualmente en el panel admin
+    if (adminSelectedDateStr === dateStr) {
+      dayEl.classList.add("selected");
+    }
+
+    // Click en el día en modo admin
+    dayEl.addEventListener("click", () => {
+      document.querySelectorAll("#admin-calendar-days-grid .calendar-day").forEach(el => el.classList.remove("selected"));
+      dayEl.classList.add("selected");
+      adminSelectedDateStr = dateStr;
+      
+      // Mostrar el formulario desplegable
+      openAdminBookingForm(dateStr);
+    });
+
+    grid.appendChild(dayEl);
+  }
+}
+
+// Desplegar campos para ingresar datos de la reserva
+function openAdminBookingForm(dateStr) {
+  const [year, month, day] = dateStr.split("-");
+  const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  
+  // Guardar la fecha en el input oculto
+  document.getElementById("admin-date").value = dateStr;
+  
+  // Actualizar el título de los campos de datos
+  document.getElementById("admin-booking-fields-title").innerText = `Registrar reserva para el día ${day} de ${months[parseInt(month) - 1]} de ${year}`;
+  
+  // Mostrar el contenedor collapsible (remover clase hidden)
+  const collapsible = document.getElementById("admin-booking-fields-collapsible");
+  collapsible.classList.remove("hidden");
+  
+  // Hacer scroll suave hacia el formulario para pantallas móviles
+  collapsible.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Importar reservas desde un archivo JSON local y subirlas a Supabase si aplica
+function handleImportJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const importedBookings = JSON.parse(e.target.result);
+      if (!Array.isArray(importedBookings)) {
+        alert("El archivo JSON debe contener un arreglo de reservas.");
+        return;
+      }
+
+      if (confirm(`¿Deseas importar ${importedBookings.length} reservas y sincronizarlas? esto reemplazará tus reservas actuales.`)) {
+        bookings = importedBookings;
+        localStorage.setItem("local_bookings_backup", JSON.stringify(bookings));
+
+        // Si hay Supabase configurado, subir en lote
+        if (supabaseUrl && supabaseKey) {
+          try {
+            // 1. Borrar todas las reservas en Supabase
+            console.log("Limpiando base de datos Supabase para importación...");
+            const delRes = await fetch(`${supabaseUrl}/rest/v1/bookings?select=*`, {
+              method: "DELETE",
+              headers: {
+                "apikey": supabaseKey,
+                "Authorization": `Bearer ${supabaseKey}`
+              }
+            });
+            
+            if (delRes.ok) {
+              // 2. Insertar las reservas importadas en lote
+              console.log("Subiendo lote de reservas a Supabase...");
+              const insertRes = await fetch(`${supabaseUrl}/rest/v1/bookings`, {
+                method: "POST",
+                headers: {
+                  "apikey": supabaseKey,
+                  "Authorization": `Bearer ${supabaseKey}`,
+                  "Content-Type": "application/json",
+                  "Prefer": "return=minimal"
+                },
+                body: JSON.stringify(bookings)
+              });
+              if (insertRes.ok) {
+                alert("Importación y sincronización con la nube exitosa.");
+              } else {
+                alert("Reservas guardadas localmente, pero falló la subida en lote a Supabase.");
+              }
+            } else {
+              alert("Reservas guardadas localmente. No se pudo limpiar Supabase.");
+            }
+          } catch (err) {
+            console.error("Error al subir importación a Supabase:", err);
+            alert("Reservas guardadas localmente. Error de conexión con Supabase.");
+          }
+        } else {
+          alert("Importación local exitosa.");
+        }
+
+        // Refrescar UI
+        renderCalendar();
+        renderAdminCalendar();
+        updateFinanceSummary();
+        renderAdminBookings();
+      }
+    } catch (err) {
+      alert("Error al leer el archivo JSON: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// --- EDICIÓN DE RESERVAS DESDE EL PANEL DE ADMINISTRACIÓN ---
+
+// Activar modo edición cargando los datos de la reserva en el formulario
+function editBookingAdmin(date, slot) {
+  const booking = bookings.find(b => b.date === date && b.slot === slot);
+  if (!booking) return;
+
+  isEditMode = true;
+  editOriginalDate = date;
+  editOriginalSlot = slot;
+
+  // Prefilar formulario
+  document.getElementById("admin-date").value = date;
+  document.getElementById("admin-slot").value = slot;
+  document.getElementById("admin-name").value = booking.name.replace('[GCal] ', '');
+  document.getElementById("admin-phone").value = booking.phone === 'GCal' ? '' : booking.phone;
+  document.getElementById("admin-total-price").value = booking.totalPrice || 0;
+  document.getElementById("admin-deposit").value = booking.deposit || 0;
+  document.getElementById("admin-notes").value = booking.notes || "";
+
+  // Cambiar textos y botones del formulario
+  const [year, month, day] = date.split("-");
+  const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  
+  document.getElementById("admin-booking-fields-title").innerText = `Modificar reserva del ${day} de ${months[parseInt(month) - 1]} de ${year}`;
+  
+  // Cambiar submit a Guardar y mostrar el botón Cancelar
+  const submitBtn = document.getElementById("admin-submit-btn");
+  if (submitBtn) submitBtn.innerText = "Guardar Cambios";
+  
+  const cancelBtn = document.getElementById("admin-cancel-edit-btn");
+  if (cancelBtn) cancelBtn.classList.remove("hidden");
+
+  // Mostrar el formulario desplegable
+  const collapsible = document.getElementById("admin-booking-fields-collapsible");
+  if (collapsible) {
+    collapsible.classList.remove("hidden");
+    // Desplazar la pantalla suavemente hacia el formulario
+    collapsible.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+// Cancelar el modo edición y resetear los campos del formulario
+function cancelAdminEdit() {
+  isEditMode = false;
+  editOriginalDate = null;
+  editOriginalSlot = null;
+
+  // Resetear textos y botones del formulario
+  const submitBtn = document.getElementById("admin-submit-btn");
+  if (submitBtn) submitBtn.innerText = "Confirmar Reserva";
+
+  const cancelBtn = document.getElementById("admin-cancel-edit-btn");
+  if (cancelBtn) cancelBtn.classList.add("hidden");
+
+  // Limpiar campos
+  document.getElementById("admin-name").value = "";
+  document.getElementById("admin-phone").value = "";
+  document.getElementById("admin-total-price").value = "";
+  document.getElementById("admin-deposit").value = "0";
+  document.getElementById("admin-notes").value = "";
+
+  // Ocultar formulario colapsable
+  const collapsible = document.getElementById("admin-booking-fields-collapsible");
+  if (collapsible) {
+    collapsible.classList.add("hidden");
+  }
+
+  // Quitar la selección del calendario
+  document.querySelectorAll("#admin-calendar-days-grid .calendar-day").forEach(el => el.classList.remove("selected"));
+  adminSelectedDateStr = null;
+}
+
