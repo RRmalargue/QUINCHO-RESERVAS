@@ -458,7 +458,7 @@ function handleBookingSubmit(event) {
   const formattedDate = date.split("-").reverse().join("/");
 
   // Construir mensaje de WhatsApp
-  const text = `¡Hola! Vengo de la aplicación móvil de reservas de El Quincho 🏡\n\n` + 
+  const text = `¡Hola! Vengo de la aplicación móvil de reservas de Quincho Las 3R 🏡\n\n` + 
                `Quiero solicitar una reserva:\n` +
                `📅 *Fecha:* ${formattedDate}\n` +
                `⏰ *Turno:* ${slotLabel}\n` +

@@ -1,7 +1,7 @@
 {
-  "name": "El Quincho - Reservas",
-  "short_name": "El Quincho",
-  "description": "Aplicación de reservas y consultas para el Quincho.",
+  "name": "Quincho Las 3R - Reservas",
+  "short_name": "Las 3R",
+  "description": "Aplicación de reservas y consultas para Quincho Las 3R.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#121214",
@@ -9,9 +9,9 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "./assets/logo.jpg",
-      "sizes": "1024x1024",
-      "type": "image/jpeg",
+      "src": "./assets/logo.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]
