@@ -537,15 +537,15 @@ h1, h2, h3, h4 {
 }
 
 .day-booked-night-free {
-  background: linear-gradient(90deg, var(--danger) 50%, #38bdf8 50%) !important;
+  background: linear-gradient(90deg, #475569 50%, #38bdf8 50%) !important;
 }
 
 .day-free-night-booked {
-  background: linear-gradient(90deg, #fbbf24 50%, var(--danger) 50%) !important;
+  background: linear-gradient(90deg, #fbbf24 50%, #475569 50%) !important;
 }
 
 .day-booked-night-booked {
-  background: linear-gradient(90deg, var(--danger) 50%, var(--danger) 50%) !important;
+  background: linear-gradient(90deg, #475569 50%, #475569 50%) !important;
 }
 
 .calendar-day .day-number {
@@ -603,7 +603,7 @@ h1, h2, h3, h4 {
 
 .legend-dot.day-avail { background-color: #fbbf24; }
 .legend-dot.night-avail { background-color: #38bdf8; }
-.legend-dot.booked { background-color: var(--danger); }
+.legend-dot.booked { background-color: #475569; }
 
 /* Caja de Detalles del Día */
 .day-details-box {
