@@ -3,7 +3,65 @@
    ========================================== */
 
 // Número de WhatsApp del dueño (Configurable en producción)
-const OWNER_PHONE = "5492612345678"; // Reemplaza con tu número completo (código país + área + celular)
+const OWNER_PHONE = "5492604552146"; // Configurado al WhatsApp del propietario 2604552146
+
+// Cifrado simple XOR + Hexadecimal para proteger datos en archivos públicos
+const SECRET_KEY = "admin3r";
+
+function encrypt(text, key = SECRET_KEY) {
+  if (text === undefined || text === null) return "";
+  const str = String(text);
+  let result = "";
+  for (let i = 0; i < str.length; i++) {
+    const charCode = str.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+    result += ("0" + charCode.toString(16)).slice(-2);
+  }
+  return result;
+}
+
+function decrypt(hex, key = SECRET_KEY) {
+  if (!hex) return "";
+  try {
+    let result = "";
+    for (let i = 0; i < hex.length; i += 2) {
+      const charCode = parseInt(hex.substr(i, 2), 16) ^ key.charCodeAt((i / 2) % key.length);
+      result += String.fromCharCode(charCode);
+    }
+    return result;
+  } catch (e) {
+    return "[Cifrado]";
+  }
+}
+
+// Obtener las reservas desencriptadas (solo para el admin logueado)
+function getDecryptedBookings() {
+  const isLogged = localStorage.getItem("admin_logged") === "true";
+  const key = sessionStorage.getItem("admin_key") || SECRET_KEY;
+  return bookings.map(b => {
+    if (b.isEncrypted) {
+      return {
+        ...b,
+        name: isLogged ? decrypt(b.name, key) : "[Reservado]",
+        phone: isLogged ? decrypt(b.phone, key) : "",
+        notes: isLogged ? decrypt(b.notes, key) : "",
+        totalPrice: isLogged ? Number(decrypt(b.totalPrice, key)) : 0,
+        deposit: isLogged ? Number(decrypt(b.deposit, key)) : 0
+      };
+    }
+    // Si no está encriptada pero la cargamos (respaldo local), simular la ocultación si no es admin
+    if (!isLogged) {
+      return {
+        ...b,
+        name: "[Reservado]",
+        phone: "",
+        notes: "",
+        totalPrice: 0,
+        deposit: 0
+      };
+    }
+    return b;
+  });
+}
 
 // Estado Global de la Aplicación
 let bookings = [];
@@ -47,6 +105,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Cargar Reservas
   initApp();
+
+  // Si el administrador ya estaba logueado previamente, mostrar el botón de navegación
+  if (localStorage.getItem("admin_logged") === "true") {
+    const adminNav = document.getElementById("nav-admin-section");
+    if (adminNav) adminNav.classList.remove("hidden");
+  }
+
+  // Entrada secreta al panel de Administración (5 clics en el logo del header)
+  let logoClicksCount = 0;
+  const headerLogo = document.getElementById("headerLogo");
+  if (headerLogo) {
+    headerLogo.addEventListener("click", () => {
+      logoClicksCount++;
+      if (logoClicksCount >= 5) {
+        logoClicksCount = 0;
+        const password = prompt("Ingrese la contraseña de Administrador para habilitar el panel:");
+        if (password === "admin3r" || password === "admin123") {
+          const adminNav = document.getElementById("nav-admin-section");
+          if (adminNav) adminNav.classList.remove("hidden");
+          localStorage.setItem("admin_logged", "true");
+          sessionStorage.setItem("admin_key", password);
+          switchTab("admin-section");
+          showAdminPanel();
+          alert("Acceso Administrador habilitado.");
+        } else if (password !== null) {
+          alert("Contraseña incorrecta.");
+        }
+      }
+    });
+  }
 
   // Controladores del Calendario Cliente
   document.getElementById("prev-month-btn").addEventListener("click", () => {
@@ -177,7 +265,20 @@ async function loadBookings() {
 
 // Guardar reserva (Local o Supabase)
 async function saveBooking(booking) {
-  bookings.push(booking);
+  // Encriptar los campos si no están encriptados ya
+  const encryptedBooking = booking.isEncrypted ? booking : {
+    date: booking.date,
+    slot: booking.slot,
+    name: encrypt(booking.name),
+    phone: encrypt(booking.phone),
+    totalPrice: encrypt(booking.totalPrice),
+    deposit: encrypt(booking.deposit),
+    notes: encrypt(booking.notes || ""),
+    isEncrypted: true,
+    isGCal: booking.isGCal || false
+  };
+
+  bookings.push(encryptedBooking);
   localStorage.setItem("local_bookings_backup", JSON.stringify(bookings));
 
   if (supabaseUrl && supabaseKey) {
@@ -190,7 +291,7 @@ async function saveBooking(booking) {
           "Content-Type": "application/json",
           "Prefer": "return=representation"
         },
-        body: JSON.stringify(booking)
+        body: JSON.stringify(encryptedBooking)
       });
       if (response.ok) {
         console.log("Reserva guardada en Supabase");
@@ -484,8 +585,9 @@ function handleAdminLogin(event) {
   event.preventDefault();
   const password = document.getElementById("admin-password").value;
 
-  if (password === "admin123") {
+  if (password === "admin3r" || password === "admin123") {
     localStorage.setItem("admin_logged", "true");
+    sessionStorage.setItem("admin_key", password);
     showAdminPanel();
     document.getElementById("admin-password").value = "";
     document.getElementById("login-error").classList.add("hidden");
@@ -524,8 +626,8 @@ function renderAdminBookings() {
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-  // Filtrar reservas: del mes/año en pantalla y que sean de hoy en adelante
-  const filteredBookings = bookings.filter(b => {
+  const decryptedBookingsList = getDecryptedBookings();
+  const filteredBookings = decryptedBookingsList.filter(b => {
     const [y, m, d] = b.date.split("-").map(Number);
     
     // Primero, debe pertenecer al mes/año en pantalla
@@ -779,8 +881,9 @@ function updateFinanceSummary() {
   const yearVal = parseInt(yearSelect.value);
   const monthVal = monthSelect.value; // "all" o índice de mes "0" a "11"
   
-  // Filtrar Reservas
-  let filteredBookings = bookings.filter(b => {
+  // Filtrar Reservas (desencriptando las ganancias si corresponde)
+  const decryptedBookingsList = getDecryptedBookings();
+  let filteredBookings = decryptedBookingsList.filter(b => {
     const [y, m, d] = b.date.split("-").map(Number);
     if (y !== yearVal) return false;
     if (monthVal !== "all" && (m - 1) !== parseInt(monthVal)) return false;
@@ -1223,14 +1326,21 @@ function editBookingAdmin(date, slot) {
   editOriginalDate = date;
   editOriginalSlot = slot;
 
+  const key = sessionStorage.getItem("admin_key") || SECRET_KEY;
+  const decName = booking.isEncrypted ? decrypt(booking.name, key) : booking.name;
+  const decPhone = booking.isEncrypted ? decrypt(booking.phone, key) : booking.phone;
+  const decTotalPrice = booking.isEncrypted ? Number(decrypt(booking.totalPrice, key)) : booking.totalPrice;
+  const decDeposit = booking.isEncrypted ? Number(decrypt(booking.deposit, key)) : booking.deposit;
+  const decNotes = booking.isEncrypted ? decrypt(booking.notes, key) : booking.notes;
+
   // Prefilar formulario
   document.getElementById("admin-date").value = date;
   document.getElementById("admin-slot").value = slot;
-  document.getElementById("admin-name").value = booking.name.replace('[GCal] ', '');
-  document.getElementById("admin-phone").value = booking.phone === 'GCal' ? '' : booking.phone;
-  document.getElementById("admin-total-price").value = booking.totalPrice || 0;
-  document.getElementById("admin-deposit").value = booking.deposit || 0;
-  document.getElementById("admin-notes").value = booking.notes || "";
+  document.getElementById("admin-name").value = decName.replace('[GCal] ', '');
+  document.getElementById("admin-phone").value = decPhone === 'GCal' ? '' : decPhone;
+  document.getElementById("admin-total-price").value = decTotalPrice || 0;
+  document.getElementById("admin-deposit").value = decDeposit || 0;
+  document.getElementById("admin-notes").value = decNotes || "";
 
   // Cambiar textos y botones del formulario
   const [year, month, day] = date.split("-");

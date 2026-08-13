@@ -99,9 +99,9 @@ function parseAndSaveICS(icsContent) {
     }
   }
 
-  // Filtrar reservas previas de Google para no duplicar
+  // Filtrar reservas previas de Google para no duplicar (usando flag isGCal)
   const originalLen = bookings.length;
-  bookings = bookings.filter(b => b.phone !== 'GCal');
+  bookings = bookings.filter(b => !b.isGCal);
   console.log(`Reservas locales previas: ${originalLen}. Limpiando importaciones previas de Google.`);
 
   // Mezclar eventos nuevos
@@ -121,10 +121,13 @@ function parseAndSaveICS(icsContent) {
         bookings.push({
           date: date,
           slot: slot,
-          name: `[GCal] ${details.name}`,
-          phone: details.phone,
-          totalPrice: details.totalPrice,
-          deposit: details.deposit
+          name: encrypt(details.name),
+          phone: encrypt(details.phone),
+          totalPrice: encrypt(details.totalPrice),
+          deposit: encrypt(details.deposit),
+          notes: encrypt(""),
+          isEncrypted: true,
+          isGCal: true
         });
         addedCount++;
       }
@@ -235,4 +238,32 @@ function extractBookingDetails(summary) {
   }
 
   return { name, phone, totalPrice, deposit };
+}
+
+// Cifrado simple XOR + Hexadecimal para proteger datos
+const SECRET_KEY = "admin3r";
+
+function encrypt(text, key = SECRET_KEY) {
+  if (text === undefined || text === null) return "";
+  const str = String(text);
+  let result = "";
+  for (let i = 0; i < str.length; i++) {
+    const charCode = str.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+    result += ("0" + charCode.toString(16)).slice(-2);
+  }
+  return result;
+}
+
+function decrypt(hex, key = SECRET_KEY) {
+  if (!hex) return "";
+  try {
+    let result = "";
+    for (let i = 0; i < hex.length; i += 2) {
+      const charCode = parseInt(hex.substr(i, 2), 16) ^ key.charCodeAt((i / 2) % key.length);
+      result += String.fromCharCode(charCode);
+    }
+    return result;
+  } catch (e) {
+    return "";
+  }
 }
