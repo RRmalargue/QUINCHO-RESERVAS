@@ -563,8 +563,23 @@ function renderAdminBookings() {
     const deposit = b.deposit !== undefined ? `$${b.deposit}` : "-";
     const balance = (b.totalPrice !== undefined && b.deposit !== undefined) ? `$${b.totalPrice - b.deposit}` : "-";
 
-    // Crear link de WhatsApp
-    const waLink = b.phone && b.phone !== "GCal" ? `<a href="https://wa.me/${b.phone.replace(/[^0-9]/g, '')}" target="_blank" style="color: #25d366; margin-left: 8px; font-size: 14px;" title="Chatear por WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>` : "";
+    // Formatear teléfono y crear link de WhatsApp normalizado para Argentina
+    let waLink = "";
+    if (b.phone && b.phone !== "GCal") {
+      let cleanPhone = b.phone.replace(/\D/g, '');
+      if (cleanPhone.length === 10) {
+        cleanPhone = "549" + cleanPhone;
+      } else if (cleanPhone.length === 11 && cleanPhone.startsWith("0")) {
+        cleanPhone = "549" + cleanPhone.substring(1);
+      } else if (cleanPhone.length === 11 && cleanPhone.startsWith("9")) {
+        cleanPhone = "54" + cleanPhone;
+      } else if (cleanPhone.length === 12 && cleanPhone.startsWith("54")) {
+        cleanPhone = "549" + cleanPhone.substring(2);
+      }
+      
+      waLink = `<a href="https://wa.me/${cleanPhone}" target="_blank" class="badge" style="background-color: #25d366; color: white; margin-left: 8px; font-size: 11px; padding: 3px 7px; text-decoration: none; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;" title="Chatear por WhatsApp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>`;
+    }
+    
     const notesDiv = b.notes ? `<div class="text-muted text-xs" style="margin-top: 4px; font-style: italic;"><i class="fa-regular fa-comment-dots"></i> ${b.notes}</div>` : "";
     const clientName = `${b.name}${waLink}${notesDiv}`;
 
