@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quincho-cache-v1';
+const CACHE_NAME = 'quincho-cache-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -6,9 +6,11 @@ const ASSETS = [
   './app.js',
   './bookings.json',
   './manifest.json',
-  './assets/logo.jpg',
+  './assets/logo.svg',
   './assets/quincho-main.jpg',
-  './assets/quincho-pool.jpg'
+  './assets/quincho-pool.jpg',
+  './assets/r_reflejadas_canva.svg',
+  './assets/monograma_3r_canva.svg'
 ];
 
 self.addEventListener('install', (e) => {
