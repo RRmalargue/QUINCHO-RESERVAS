@@ -1,1397 +1,1454 @@
-/* ==========================================
-   LÓGICA PRINCIPAL - EL QUINCHO RESERVAS
-   ========================================== */
+document.addEventListener('DOMContentLoaded', () => {
+    // State Variables
+    let currentStep = 1;
+    let config = null;
+    let uploadedFileBase64 = null;
+    let uploadedFileName = null;
+    let uploadedFileType = null;
 
-// Número de WhatsApp del dueño (Configurable en producción)
-const OWNER_PHONE = "5492604552146"; // Configurado al WhatsApp del propietario 2604552146
+    // IMPORTANT: Reemplazar esta URL con el Web App URL provisto por Google Apps Script al publicar el script.
+    // Si la URL contiene 'TU_SCRIPT_URL_AQUI', el sistema funcionará en MODO DEMOSTRACIÓN (simulación).
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_ey1wwIBjzMzbOmqURIgFgkfVCtX3PvRgVpxZbPv7xtNlLlKF4OoCXKTU8hvkMsLX/exec';
 
-// Cifrado simple XOR + Hexadecimal para proteger datos en archivos públicos
-const SECRET_KEY = "admin3r";
+    // HTML Elements
+    const form = document.getElementById('registration-form');
+    const bgOverlay = document.getElementById('bg-overlay');
+    const raceTitle = document.getElementById('race-title');
+    const footerRaceName = document.getElementById('footer-race-name');
+    const tshirtImage = document.getElementById('tshirt-image');
+    const altimetryImage = document.getElementById('altimetry-image');
+    const paymentDetailsText = document.getElementById('payment-details-text');
+    const deslindeDownload = document.getElementById('deslinde-download');
+    const gpxBtn = document.getElementById('gpx-btn');
+    const kmlBtn = document.getElementById('kml-btn');
+    const startLocationBtn = document.getElementById('start-location-btn');
+    const distancesContainer = document.getElementById('distances-container');
 
-function encrypt(text, key = SECRET_KEY) {
-  if (text === undefined || text === null) return "";
-  const str = String(text);
-  let result = "";
-  for (let i = 0; i < str.length; i++) {
-    const charCode = str.charCodeAt(i) ^ key.charCodeAt(i % key.length);
-    result += ("0" + charCode.toString(16)).slice(-2);
-  }
-  return result;
-}
+    // Leaflet.js variables for interactive GPX maps
+    let trackMap = null;
+    let trackPolyline = null;
 
-function decrypt(hex, key = SECRET_KEY) {
-  if (!hex) return "";
-  try {
-    let result = "";
-    for (let i = 0; i < hex.length; i += 2) {
-      const charCode = parseInt(hex.substr(i, 2), 16) ^ key.charCodeAt((i / 2) % key.length);
-      result += String.fromCharCode(charCode);
-    }
-    return result;
-  } catch (e) {
-    return "[Cifrado]";
-  }
-}
+    // Steps & Indicators
+    const step1 = document.getElementById('step-1');
+    const step2 = document.getElementById('step-2');
+    const indicator1 = document.getElementById('indicator-1');
+    const indicator2 = document.getElementById('indicator-2');
 
-// Obtener las reservas desencriptadas (solo para el admin logueado)
-function getDecryptedBookings() {
-  const isLogged = localStorage.getItem("admin_logged") === "true";
-  const key = sessionStorage.getItem("admin_key") || SECRET_KEY;
-  return bookings.map(b => {
-    if (b.isEncrypted) {
-      return {
-        ...b,
-        name: isLogged ? decrypt(b.name, key) : "[Reservado]",
-        phone: isLogged ? decrypt(b.phone, key) : "",
-        notes: isLogged ? decrypt(b.notes, key) : "",
-        totalPrice: isLogged ? Number(decrypt(b.totalPrice, key)) : 0,
-        deposit: isLogged ? Number(decrypt(b.deposit, key)) : 0
-      };
-    }
-    // Si no está encriptada pero la cargamos (respaldo local), simular la ocultación si no es admin
-    if (!isLogged) {
-      return {
-        ...b,
-        name: "[Reservado]",
-        phone: "",
-        notes: "",
-        totalPrice: 0,
-        deposit: 0
-      };
-    }
-    return b;
-  });
-}
+    // Navigation Buttons
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const btnSubmit = document.getElementById('btn-submit');
+    const errorBar = document.getElementById('error-bar');
+    const errorText = document.getElementById('error-text');
 
-// Estado Global de la Aplicación
-let bookings = [];
-let expenses = []; // Gastos de limpieza, servicios, mantenimiento, etc.
-let currentDate = new Date();
-let selectedDateStr = null;
-let currentCarouselIndex = 0;
+    // Step 1 Inputs
+    const inputNombre = document.getElementById('nombre');
+    const inputApellido = document.getElementById('apellido');
+    const inputCuil = document.getElementById('cuil');
+    const inputFechaNacimiento = document.getElementById('fecha_nacimiento');
+    const birthDayInput = document.getElementById('birth_day');
+    const birthMonthInput = document.getElementById('birth_month');
+    const birthYearInput = document.getElementById('birth_year');
+    const inputGenero = document.getElementById('genero');
+    const inputEdad = document.getElementById('edad');
+    const inputCategoria = document.getElementById('categoria');
+    const inputTelefono = document.getElementById('telefono');
+    const inputTalleRemera = document.getElementById('talle_remera');
 
-// Feriados nacionales en Argentina
-let holidays = [];
-let holidayNames = {};
-let loadedHolidaysYear = null;
-let adminSelectedDateStr = null; // Guardará la fecha seleccionada en el panel admin
-let isEditMode = false;
-let editOriginalDate = null;
-let editOriginalSlot = null;
+    // Step 3 Inputs / Info
+    const fileDropzone = document.getElementById('file-dropzone');
+    const fileInput = document.getElementById('comprobante');
+    const filePreviewContainer = document.getElementById('file-preview-container');
+    const previewFilename = document.getElementById('preview-filename');
+    const previewFilesize = document.getElementById('preview-filesize');
+    const previewIcon = document.getElementById('preview-icon');
+    const btnRemoveFile = document.getElementById('btn-remove-file');
 
-// Configuración de Supabase (se carga de localStorage si existe)
-let supabaseUrl = localStorage.getItem("sb_url") || "";
-let supabaseKey = localStorage.getItem("sb_key") || "";
+    // Summary Elements
+    const summaryCorredor = document.getElementById('summary-corredor');
+    const summaryDistancia = document.getElementById('summary-distancia');
+    const summaryCategoria = document.getElementById('summary-categoria');
+    const summaryMonto = document.getElementById('summary-monto');
 
-// Inicialización al cargar la página
-document.addEventListener("DOMContentLoaded", () => {
-  // Registrar el Service Worker solo si NO es un entorno local (localhost, 127.0.0.1 o file://)
-  const isLocal = window.location.hostname === 'localhost' || 
-                  window.location.hostname === '127.0.0.1' || 
-                  window.location.protocol === 'file:';
-  if ('serviceWorker' in navigator && !isLocal) {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('Service Worker registrado con éxito', reg))
-      .catch(err => console.warn('Error al registrar el Service Worker', err));
-  } else if ('serviceWorker' in navigator && isLocal) {
-    // Desregistrar cualquier service worker activo para evitar el cacheo durante pruebas locales
-    navigator.serviceWorker.getRegistrations().then(registrations => {
-      for (let registration of registrations) {
-        registration.unregister();
-      }
-    });
-    console.log('Modo de prueba local detectado: Cacheo PWA desactivado para desarrollo rápido.');
-  }
+    // Screens
+    const successScreen = document.getElementById('success-screen');
+    const loadingScreen = document.getElementById('loading-screen');
 
-  // Cargar Reservas
-  initApp();
-
-  // Si el administrador ya estaba logueado previamente, mostrar el botón de navegación
-  if (localStorage.getItem("admin_logged") === "true") {
-    const adminNav = document.getElementById("nav-admin-section");
-    if (adminNav) adminNav.classList.remove("hidden");
-  }
-
-  // Entrada secreta al panel de Administración (5 clics en el logo del header)
-  let logoClicksCount = 0;
-  const headerLogo = document.getElementById("headerLogo");
-  if (headerLogo) {
-    headerLogo.addEventListener("click", () => {
-      logoClicksCount++;
-      if (logoClicksCount >= 5) {
-        logoClicksCount = 0;
-        const password = prompt("Ingrese la contraseña de Administrador para habilitar el panel:");
-        if (password === "admin3r" || password === "admin123") {
-          const adminNav = document.getElementById("nav-admin-section");
-          if (adminNav) adminNav.classList.remove("hidden");
-          localStorage.setItem("admin_logged", "true");
-          sessionStorage.setItem("admin_key", password);
-          switchTab("admin-section");
-          showAdminPanel();
-          alert("Acceso Administrador habilitado.");
-        } else if (password !== null) {
-          alert("Contraseña incorrecta.");
-        }
-      }
-    });
-  }
-
-  // Controladores del Calendario Cliente
-  document.getElementById("prev-month-btn").addEventListener("click", () => {
-    currentDate.setMonth(currentDate.getMonth() - 1);
-    renderCalendar();
-    renderAdminCalendar();
-    renderAdminBookings(); // Filtrar y refrescar listado
-  });
-  document.getElementById("next-month-btn").addEventListener("click", () => {
-    currentDate.setMonth(currentDate.getMonth() + 1);
-    renderCalendar();
-    renderAdminCalendar();
-    renderAdminBookings(); // Filtrar y refrescar listado
-  });
-
-  // Controladores del Calendario Admin
-  const adminPrevBtn = document.getElementById("admin-prev-month-btn");
-  const adminNextBtn = document.getElementById("admin-next-month-btn");
-  if (adminPrevBtn) {
-    adminPrevBtn.addEventListener("click", () => {
-      currentDate.setMonth(currentDate.getMonth() - 1);
-      renderCalendar();
-      renderAdminCalendar();
-      renderAdminBookings(); // Filtrar y refrescar listado
-    });
-  }
-  if (adminNextBtn) {
-    adminNextBtn.addEventListener("click", () => {
-      currentDate.setMonth(currentDate.getMonth() + 1);
-      renderCalendar();
-      renderAdminCalendar();
-      renderAdminBookings(); // Filtrar y refrescar listado
-    });
-  }
-
-  // Autologin si ya estaba logueado
-  if (localStorage.getItem("admin_logged") === "true") {
-    showAdminPanel();
-  }
-
-  // Auto-slide en el Carrusel cada 5 segundos
-  setInterval(() => {
-    moveCarousel(1);
-  }, 5000);
-});
-
-// --- CARGA DE DATOS (LOCAL O SUPABASE) ---
-async function initApp() {
-  await initCarouselGallery();
-  await loadBookings();
-  loadExpenses(); // Cargar Gastos
-  renderCalendar();
-  renderAdminCalendar(); // Cargar Calendario Admin
-  
-  // Inicializar fecha de reserva manual y gasto con el día de hoy
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
-  const todayStr = `${yyyy}-${mm}-${dd}`;
-  
-  if (document.getElementById("admin-date")) document.getElementById("admin-date").value = todayStr;
-  if (document.getElementById("expense-date")) document.getElementById("expense-date").value = todayStr;
-  
-  // Renderizar listados y balances financieros
-  renderExpenses();
-  populateFinanceYears();
-  updateFinanceSummary();
-  
-  // Cargar campos de Supabase si existen
-  if (supabaseUrl) document.getElementById("sb-url").value = supabaseUrl;
-  if (supabaseKey) document.getElementById("sb-key").value = supabaseKey;
-}
-
-// Cargar reservas desde Supabase, bookings.json o localStorage
-async function loadBookings() {
-  // 1. Intentar desde Supabase si está configurado
-  if (supabaseUrl && supabaseKey) {
-    try {
-      const response = await fetch(`${supabaseUrl}/rest/v1/bookings?select=*`, {
-        headers: {
-          "apikey": supabaseKey,
-          "Authorization": `Bearer ${supabaseKey}`
-        }
-      });
-      if (response.ok) {
-        bookings = await response.json();
-        console.log("Reservas cargadas desde Supabase:", bookings);
-        localStorage.setItem("local_bookings_backup", JSON.stringify(bookings));
-        return;
-      }
-    } catch (e) {
-      console.warn("Fallo de conexión a Supabase, intentando local...", e);
-    }
-  }
-
-  // 2. Intentar desde LocalStorage (copia de trabajo reciente)
-  const localData = localStorage.getItem("local_bookings_backup");
-  if (localData) {
-    bookings = JSON.parse(localData);
-    console.log("Reservas cargadas desde LocalStorage");
-    return;
-  }
-
-  // 3. Cargar desde bookings.json o usar datos iniciales en duro como respaldo absoluto (ideal para pruebas directas)
-  const defaultMockBookings = [
-    { "date": "2026-08-15", "slot": "night", "name": "Pedro", "phone": "5492611234567", "totalPrice": 50000, "deposit": 20000 },
-    { "date": "2026-08-16", "slot": "day", "name": "Juan", "phone": "5492617654321", "totalPrice": 40000, "deposit": 40000 },
-    { "date": "2026-08-22", "slot": "night", "name": "María", "totalPrice": 60000, "deposit": 0 },
-    { "date": "2026-08-23", "slot": "day", "name": "Carlos", "phone": "5492615555555", "totalPrice": 55000, "deposit": 15000 }
-  ];
-
-  try {
-    const response = await fetch("./bookings.json");
-    if (response.ok) {
-      bookings = await response.json();
-      console.log("Reservas cargadas desde bookings.json");
-    } else {
-      bookings = defaultMockBookings;
-      console.log("No se pudo obtener bookings.json de forma remota, cargando respaldo local");
-    }
-  } catch (err) {
-    console.warn("Entorno local sin servidor (CORS) detectado, cargando reservas de respaldo:", err);
-    bookings = defaultMockBookings;
-  }
-  localStorage.setItem("local_bookings_backup", JSON.stringify(bookings));
-}
-
-// Guardar reserva (Local o Supabase)
-async function saveBooking(booking) {
-  // Encriptar los campos si no están encriptados ya
-  const encryptedBooking = booking.isEncrypted ? booking : {
-    date: booking.date,
-    slot: booking.slot,
-    name: encrypt(booking.name),
-    phone: encrypt(booking.phone),
-    totalPrice: encrypt(booking.totalPrice),
-    deposit: encrypt(booking.deposit),
-    notes: encrypt(booking.notes || ""),
-    isEncrypted: true,
-    isGCal: booking.isGCal || false
-  };
-
-  bookings.push(encryptedBooking);
-  localStorage.setItem("local_bookings_backup", JSON.stringify(bookings));
-
-  if (supabaseUrl && supabaseKey) {
-    try {
-      const response = await fetch(`${supabaseUrl}/rest/v1/bookings`, {
-        method: "POST",
-        headers: {
-          "apikey": supabaseKey,
-          "Authorization": `Bearer ${supabaseKey}`,
-          "Content-Type": "application/json",
-          "Prefer": "return=representation"
+    // Configuración de respaldo (Fallback) en caso de que el navegador bloquee la carga local (restricciones CORS al abrir con doble clic en archivo local)
+    const FALLBACK_CONFIG = {
+      "raceName": "CROSS TRAIL \"TERCER TIEMPO\"",
+      "posterImage": "./IMAGENES/AFICHE TERCER.jpg",
+      "tshirtImage": "./IMAGENES/REMERA TERCER.jpg",
+      "altitudeMapImage": "./IMAGENES/MAPA ALTURA.jpg",
+      "gpxLink": "#",
+      "kmlLink": "#",
+      "startLocationMapLink": "https://maps.google.com/?q=-34.603722,-58.381592",
+      "deslindeLink": "./assets/deslinde.pdf",
+      "paymentDetails": "Banco de la Nación Argentina\nCBU: 0110599520000001234567\nAlias: ALPACHIRI.TRAIL\nTitular: Trail Running S.A.",
+      "distances": [
+        {
+          "id": "5 KMS",
+          "name": "COMPETITIVA",
+          "price": 35000,
+          "detail": ""
         },
-        body: JSON.stringify(encryptedBooking)
-      });
-      if (response.ok) {
-        console.log("Reserva guardada en Supabase");
-      }
-    } catch (e) {
-      console.error("Error al sincronizar con Supabase", e);
-    }
-  }
-}
-
-// Eliminar reserva (Local o Supabase)
-async function deleteBooking(date, slot) {
-  bookings = bookings.filter(b => !(b.date === date && b.slot === slot));
-  localStorage.setItem("local_bookings_backup", JSON.stringify(bookings));
-
-  if (supabaseUrl && supabaseKey) {
-    try {
-      const response = await fetch(`${supabaseUrl}/rest/v1/bookings?date=eq.${date}&slot=eq.${slot}`, {
-        method: "DELETE",
-        headers: {
-          "apikey": supabaseKey,
-          "Authorization": `Bearer ${supabaseKey}`
+        {
+          "id": "15 KMS",
+          "name": "COMPETITIVA",
+          "price": 50000,
+          "detail": ""
         }
-      });
-      if (response.ok) {
-        console.log("Reserva eliminada de Supabase");
-      }
-    } catch (e) {
-      console.error("Error al eliminar en Supabase", e);
-    }
-  }
-}
-
-// --- CONTRAL DE SECCIONES (TABS) ---
-function switchTab(sectionId) {
-  // Desactivar todas las vistas
-  document.querySelectorAll(".tab-content").forEach(tab => {
-    tab.classList.remove("active");
-  });
-  
-  // Desactivar todos los botones de navegación
-  document.querySelectorAll(".nav-item").forEach(btn => {
-    btn.classList.remove("active");
-  });
-
-  // Activar la seleccionada
-  document.getElementById(sectionId).classList.add("active");
-  document.getElementById(`nav-${sectionId}`).classList.add("active");
-
-  // Acciones especiales al cambiar de sección
-  if (sectionId === "calendar-section") {
-    renderCalendar();
-    // Ocultar caja de detalles al cambiar de vista para empezar limpio
-    document.getElementById("day-details-box").classList.add("hidden");
-  } else if (sectionId === "admin-section") {
-    if (localStorage.getItem("admin_logged") === "true") {
-      renderAdminBookings();
-    }
-  }
-}
-
-// --- CONTROL DE CARRUSEL DE FOTOS ---
-function moveCarousel(step) {
-  const slides = document.querySelectorAll(".carousel-slide");
-  const indicators = document.querySelectorAll(".carousel-indicators .indicator");
-  
-  slides[currentCarouselIndex].classList.remove("active");
-  indicators[currentCarouselIndex].classList.remove("active");
-
-  currentCarouselIndex = (currentCarouselIndex + step + slides.length) % slides.length;
-
-  slides[currentCarouselIndex].classList.add("active");
-  indicators[currentCarouselIndex].classList.add("active");
-}
-
-function setCarouselSlide(index) {
-  const slides = document.querySelectorAll(".carousel-slide");
-  const indicators = document.querySelectorAll(".carousel-indicators .indicator");
-  
-  slides[currentCarouselIndex].classList.remove("active");
-  indicators[currentCarouselIndex].classList.remove("active");
-
-  currentCarouselIndex = index;
-
-  slides[currentCarouselIndex].classList.add("active");
-  indicators[currentCarouselIndex].classList.add("active");
-}
-
-// --- GENERACIÓN DEL CALENDARIO ---
-async function renderCalendar() {
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  
-  // Nombre del mes y año en el encabezado
-  const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-  document.getElementById("calendar-month-year").innerText = `${monthNames[month]} ${year}`;
-
-  // Cargar feriados si cambiamos de año
-  if (loadedHolidaysYear !== year) {
-    loadedHolidaysYear = year;
-    await fetchHolidays(year);
-  }
-
-  const grid = document.getElementById("calendar-days-grid");
-  grid.innerHTML = "";
-
-  // Primer día de la semana del mes (0 = Domingo, 1 = Lunes, etc.)
-  const firstDayIndex = new Date(year, month, 1).getDay();
-  // Cantidad de días del mes
-  const totalDays = new Date(year, month + 1, 0).getDate();
-
-  // Días vacíos para completar el inicio del mes
-  for (let i = 0; i < firstDayIndex; i++) {
-    const emptyDay = document.createElement("div");
-    emptyDay.classList.add("calendar-day", "empty");
-    grid.appendChild(emptyDay);
-  }
-
-  // Días válidos del mes
-  for (let day = 1; day <= totalDays; day++) {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const dayEl = document.createElement("div");
-    dayEl.classList.add("calendar-day");
-
-    // Determinar si es fin de semana (Domingo o Sábado)
-    const dayOfWeek = new Date(year, month, day).getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    if (isWeekend) {
-      dayEl.classList.add("weekend");
-    }
-
-    // Determinar si es feriado en Argentina
-    const isHoliday = holidays.includes(dateStr);
-    if (isHoliday) {
-      dayEl.classList.add("holiday");
-      dayEl.setAttribute("title", holidayNames[dateStr] || "Feriado");
-    }
-
-    // Buscar reservas para este día
-    const dayBookings = bookings.filter(b => b.date === dateStr);
-    const dayReserved = dayBookings.some(b => b.slot === "day");
-    const nightReserved = dayBookings.some(b => b.slot === "night");
-
-    // Asignar clases de gradiente dividido en diagonal (135deg)
-    if (dayReserved && nightReserved) {
-      dayEl.classList.add("day-booked-night-booked");
-    } else if (dayReserved) {
-      dayEl.classList.add("day-booked-night-free");
-    } else if (nightReserved) {
-      dayEl.classList.add("day-free-night-booked");
-    } else {
-      dayEl.classList.add("day-free-night-free");
-    }
-
-    dayEl.innerHTML = `<span class="day-number">${day}</span>`;
-
-    // Si es el día seleccionado actualmente
-    if (selectedDateStr === dateStr) {
-      dayEl.classList.add("selected");
-    }
-
-    // Click en el día
-    dayEl.addEventListener("click", () => {
-      // Remover selección previa
-      document.querySelectorAll(".calendar-day").forEach(el => el.classList.remove("selected"));
-      dayEl.classList.add("selected");
-      selectedDateStr = dateStr;
-      showDayDetails(dateStr);
-      
-      // Sincronizar automáticamente la fecha en el formulario de administración
-      document.getElementById("admin-date").value = dateStr;
-    });
-
-    grid.appendChild(dayEl);
-  }
-}
-
-// Mostrar los turnos de un día seleccionado
-function showDayDetails(dateStr) {
-  const [year, month, day] = dateStr.split("-");
-  const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-  
-  // Convertir a formato legible
-  const dateObj = new Date(year, parseInt(month) - 1, day);
-  const weekdays = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-  const dayName = weekdays[dateObj.getDay()];
-  
-  document.getElementById("selected-day-title").innerText = `${dayName}, ${day} de ${months[parseInt(month) - 1]}`;
-
-  // Verificar reservas para este día
-  const dayBookings = bookings.filter(b => b.date === dateStr);
-  const dayReserved = dayBookings.find(b => b.slot === "day");
-  const nightReserved = dayBookings.find(b => b.slot === "night");
-
-  // Configurar Turno Mañana
-  const dayStatus = document.getElementById("slot-day-status");
-  const dayBtn = document.getElementById("slot-day-btn");
-  if (dayReserved) {
-    dayStatus.innerText = "Reservado";
-    dayStatus.className = "badge badge-danger";
-    dayBtn.innerText = "No Disponible";
-    dayBtn.disabled = true;
-    dayBtn.className = "btn btn-sm btn-outline-danger";
-  } else {
-    dayStatus.innerText = "Disponible";
-    dayStatus.className = "badge badge-success";
-    dayBtn.innerText = "Reservar";
-    dayBtn.disabled = false;
-    dayBtn.className = "btn btn-sm btn-outline-primary";
-  }
-
-  // Configurar Turno Noche
-  const nightStatus = document.getElementById("slot-night-status");
-  const nightBtn = document.getElementById("slot-night-btn");
-  if (nightReserved) {
-    nightStatus.innerText = "Reservado";
-    nightStatus.className = "badge badge-danger";
-    nightBtn.innerText = "No Disponible";
-    nightBtn.disabled = true;
-    nightBtn.className = "btn btn-sm btn-outline-danger";
-  } else {
-    nightStatus.innerText = "Disponible";
-    nightStatus.className = "badge badge-success";
-    nightBtn.innerText = "Reservar";
-    nightBtn.disabled = false;
-    nightBtn.className = "btn btn-sm btn-outline-primary";
-  }
-
-  // Mostrar el panel de detalles
-  document.getElementById("day-details-box").classList.remove("hidden");
-}
-
-// --- FORMULARIO DE RESERVA (WHATSAPP) ---
-function openBookingForm(slot) {
-  if (!selectedDateStr) return;
-  
-  const slotName = slot === "day" ? "Turno Mañana (10:00 a 19:00 hs)" : "Turno Noche (20:30 a 04:30 hs)";
-  
-  // Llenar campos invisibles/lectura
-  document.getElementById("form-date").value = selectedDateStr;
-  document.getElementById("form-slot").value = slot;
-  document.getElementById("form-display-date").value = selectedDateStr.split("-").reverse().join("/");
-  document.getElementById("form-display-slot").value = slotName;
-
-  // Abrir Modal
-  document.getElementById("booking-modal").classList.remove("hidden");
-}
-
-function closeBookingModal() {
-  document.getElementById("booking-modal").classList.add("hidden");
-  document.getElementById("booking-form").reset();
-}
-
-function handleBookingSubmit(event) {
-  event.preventDefault();
-
-  const date = document.getElementById("form-date").value;
-  const slot = document.getElementById("form-slot").value;
-  const name = document.getElementById("client-name").value;
-  const phone = document.getElementById("client-phone").value;
-  const guests = document.getElementById("client-guests").value || "No especificado";
-  const notes = document.getElementById("client-notes").value || "Ninguna";
-
-  const slotLabel = slot === "day" ? "Mañana (10:00 a 19:00 hs)" : "Noche (20:30 a 04:30 hs)";
-  const formattedDate = date.split("-").reverse().join("/");
-
-  // Construir mensaje de WhatsApp
-  const text = `¡Hola! Vengo de la aplicación móvil de reservas de Quincho Las 3R 🏡\n\n` + 
-               `Quiero solicitar una reserva:\n` +
-               `📅 *Fecha:* ${formattedDate}\n` +
-               `⏰ *Turno:* ${slotLabel}\n` +
-               `👤 *Nombre:* ${name}\n` +
-               `📞 *WhatsApp:* ${phone}\n` +
-               `👥 *Invitados:* ${guests} personas\n` +
-               `💬 *Consulta:* ${notes}\n\n` +
-               `*Espero su confirmación para coordinar la seña.*`;
-
-  const url = `https://wa.me/${OWNER_PHONE}?text=${encodeURIComponent(text)}`;
-  
-  // Abrir WhatsApp
-  window.open(url, "_blank");
-
-  // Cerrar Modal
-  closeBookingModal();
-}
-
-// --- PANEL DE ADMINISTRACIÓN ---
-
-// Login
-function handleAdminLogin(event) {
-  event.preventDefault();
-  const password = document.getElementById("admin-password").value;
-
-  if (password === "admin3r" || password === "admin123") {
-    localStorage.setItem("admin_logged", "true");
-    sessionStorage.setItem("admin_key", password);
-    showAdminPanel();
-    document.getElementById("admin-password").value = "";
-    document.getElementById("login-error").classList.add("hidden");
-  } else {
-    document.getElementById("login-error").classList.remove("hidden");
-  }
-}
-
-function showAdminPanel() {
-  document.getElementById("admin-login-box").classList.add("hidden");
-  document.getElementById("admin-panel").classList.remove("hidden");
-  renderAdminBookings();
-  renderAdminCalendar(); // Generar calendario admin al entrar
-  renderExpenses();
-  populateFinanceYears();
-  updateFinanceSummary();
-}
-
-// Logout
-function handleAdminLogout() {
-  localStorage.setItem("admin_logged", "false");
-  document.getElementById("admin-panel").classList.add("hidden");
-  document.getElementById("admin-login-box").classList.remove("hidden");
-}
-
-// Listado de reservas en el panel admin (Filtrado por el mes/año en pantalla y desde hoy hacia adelante)
-function renderAdminBookings() {
-  const tbody = document.getElementById("admin-bookings-list");
-  if (!tbody) return;
-  tbody.innerHTML = "";
-
-  const viewYear = currentDate.getFullYear();
-  const viewMonth = currentDate.getMonth() + 1; // 1-indexed
-
-  // Obtener fecha de hoy en formato local YYYY-MM-DD
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-  const decryptedBookingsList = getDecryptedBookings();
-  const filteredBookings = decryptedBookingsList.filter(b => {
-    const [y, m, d] = b.date.split("-").map(Number);
-    
-    // Primero, debe pertenecer al mes/año en pantalla
-    if (y !== viewYear || m !== viewMonth) return false;
-    
-    // Segundo, solo mostrar eventos de hoy inclusive hacia el futuro
-    return b.date >= todayStr;
-  });
-
-  // Ordenar reservas por fecha y luego por turno (mañana antes de noche)
-  const sortedBookings = [...filteredBookings].sort((a, b) => {
-    if (a.date !== b.date) return a.date.localeCompare(b.date);
-    return a.slot.localeCompare(b.slot);
-  });
-
-  // Actualizar el título de la tarjeta para indicar qué mes estamos viendo y que es a partir de hoy
-  const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-  const listTitle = document.getElementById("admin-bookings-title");
-  if (listTitle) {
-    listTitle.innerHTML = `<i class="fa-solid fa-list-check"></i> Reservas de ${monthNames[currentDate.getMonth()]} ${viewYear} (Desde hoy)`;
-  }
-
-  if (sortedBookings.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary">No hay reservas activas/futuras para este mes.</td></tr>`;
-    return;
-  }
-
-  sortedBookings.forEach(b => {
-    const tr = document.createElement("tr");
-    const formattedDate = b.date.split("-").reverse().join("/");
-    const slotLabel = b.slot === "day" ? "Mañana" : "Noche";
-
-    // Formatear valores financieros
-    const totalPrice = b.totalPrice !== undefined ? `$${b.totalPrice}` : "-";
-    const deposit = b.deposit !== undefined ? `$${b.deposit}` : "-";
-    const balance = (b.totalPrice !== undefined && b.deposit !== undefined) ? `$${b.totalPrice - b.deposit}` : "-";
-
-    // Formatear teléfono y crear link de WhatsApp normalizado para Argentina
-    let waLink = "";
-    if (b.phone && b.phone !== "GCal") {
-      let cleanPhone = b.phone.replace(/\D/g, '');
-      if (cleanPhone.length === 10) {
-        cleanPhone = "549" + cleanPhone;
-      } else if (cleanPhone.length === 11 && cleanPhone.startsWith("0")) {
-        cleanPhone = "549" + cleanPhone.substring(1);
-      } else if (cleanPhone.length === 11 && cleanPhone.startsWith("9")) {
-        cleanPhone = "54" + cleanPhone;
-      } else if (cleanPhone.length === 12 && cleanPhone.startsWith("54")) {
-        cleanPhone = "549" + cleanPhone.substring(2);
-      }
-      
-      waLink = `<a href="https://wa.me/${cleanPhone}" target="_blank" class="badge" style="background-color: #25d366; color: white; margin-left: 8px; font-size: 11px; padding: 3px 7px; text-decoration: none; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;" title="Chatear por WhatsApp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>`;
-    }
-    
-    const notesDiv = b.notes ? `<div class="text-muted text-xs" style="margin-top: 4px; font-style: italic;"><i class="fa-regular fa-comment-dots"></i> ${b.notes}</div>` : "";
-    const clientName = `${b.name}${waLink}${notesDiv}`;
-
-    tr.innerHTML = `
-      <td><strong>${formattedDate}</strong></td>
-      <td>${slotLabel}</td>
-      <td>${clientName}</td>
-      <td>${totalPrice}</td>
-      <td>${deposit}</td>
-      <td><span style="font-weight: 600; color: ${b.totalPrice - b.deposit > 0 ? 'var(--warning)' : 'var(--success)'}">${balance}</span></td>
-      <td>
-        <div class="btn-group-row">
-          <button class="btn btn-sm btn-outline-primary" onclick="editBookingAdmin('${b.date}', '${b.slot}')" title="Editar Reserva">
-            <i class="fa-regular fa-pen-to-square"></i>
-          </button>
-          <button class="btn btn-sm btn-outline-danger" onclick="deleteBookingAdmin('${b.date}', '${b.slot}')" title="Eliminar Reserva">
-            <i class="fa-regular fa-trash-can"></i>
-          </button>
-        </div>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-// Eliminar reserva desde Admin
-async function deleteBookingAdmin(date, slot) {
-  if (confirm(`¿Seguro que deseas eliminar la reserva del ${date.split("-").reverse().join("/")} (${slot === 'day' ? 'Mañana' : 'Noche'})?`)) {
-    await deleteBooking(date, slot);
-    renderAdminBookings();
-    renderAdminCalendar(); // Refrescar calendario admin
-    renderCalendar();
-    
-    // Actualizar balances financieros
-    updateFinanceSummary();
-    populateFinanceYears();
-    
-    // Ocultar o refrescar el panel de detalles si estaba mostrando ese día
-    if (selectedDateStr === date) {
-      showDayDetails(date);
-    }
-  }
-}
-
-// Agregar o editar reserva manual (Bloqueo de fechas)
-async function handleAdminManualBooking(event) {
-  event.preventDefault();
-  const date = document.getElementById("admin-date").value;
-  const slot = document.getElementById("admin-slot").value;
-  const name = document.getElementById("admin-name").value;
-  const phone = document.getElementById("admin-phone").value.trim();
-  const totalPriceVal = parseInt(document.getElementById("admin-total-price").value) || 0;
-  const depositVal = parseInt(document.getElementById("admin-deposit").value) || 0;
-  const notesVal = document.getElementById("admin-notes").value.trim();
-
-  // Validar si ya está ocupado (excluyendo el registro que estamos editando si aplica)
-  const exists = bookings.some(b => 
-    b.date === date && 
-    b.slot === slot && 
-    !(isEditMode && editOriginalDate === date && editOriginalSlot === slot)
-  );
-  if (exists) {
-    alert("Este turno ya se encuentra reservado.");
-    return;
-  }
-
-  const newBooking = { 
-    date, 
-    slot, 
-    name, 
-    phone, 
-    totalPrice: totalPriceVal, 
-    deposit: depositVal,
-    notes: notesVal
-  };
-
-  if (isEditMode) {
-    // Borrar original y registrar nuevo
-    await deleteBooking(editOriginalDate, editOriginalSlot);
-    await saveBooking(newBooking);
-    cancelAdminEdit();
-    alert("Reserva modificada correctamente.");
-  } else {
-    await saveBooking(newBooking);
-    alert("Reserva manual agregada correctamente.");
-  }
-
-  // Limpiar campos y refrescar
-  document.getElementById("admin-name").value = "";
-  document.getElementById("admin-phone").value = "";
-  document.getElementById("admin-total-price").value = "";
-  document.getElementById("admin-deposit").value = "0";
-  document.getElementById("admin-notes").value = "";
-  
-  // Ocultar campos colapsables
-  document.getElementById("admin-booking-fields-collapsible").classList.add("hidden");
-  adminSelectedDateStr = null;
-
-  renderAdminBookings();
-  renderAdminCalendar(); // Refrescar calendario admin
-  renderCalendar();
-  
-  // Actualizar balances financieros
-  updateFinanceSummary();
-  populateFinanceYears();
-}
-
-// Descargar bookings.json para GitHub
-function downloadBookingsJSON() {
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bookings, null, 2));
-  const downloadAnchor = document.createElement("a");
-  downloadAnchor.setAttribute("href", dataStr);
-  downloadAnchor.setAttribute("download", "bookings.json");
-  document.body.appendChild(downloadAnchor);
-  downloadAnchor.click();
-  downloadAnchor.remove();
-}
-
-// Guardar configuración de Supabase
-function handleSupabaseSave(event) {
-  event.preventDefault();
-  const url = document.getElementById("sb-url").value.trim();
-  const key = document.getElementById("sb-key").value.trim();
-
-  localStorage.setItem("sb_url", url);
-  localStorage.setItem("sb_key", key);
-  
-  supabaseUrl = url;
-  supabaseKey = key;
-
-  alert("Configuración de base de datos en la nube guardada. Intentando recargar...");
-  initApp();
-}
-
-// --- GESTIÓN FINANCIERA Y DE GASTOS ---
-
-// Cargar Gastos desde LocalStorage con valores iniciales si no existen
-function loadExpenses() {
-  const localData = localStorage.getItem("local_expenses_backup");
-  if (localData) {
-    expenses = JSON.parse(localData);
-  } else {
-    expenses = [
-      { id: 1, date: "2026-08-10", category: "Limpieza", desc: "Pago limpieza inicial", amount: 4000 },
-      { id: 2, date: "2026-08-11", category: "Mantenimiento", desc: "Compra cloro piscina", amount: 3500 }
-    ];
-    saveExpenses();
-  }
-}
-
-// Guardar Gastos en LocalStorage
-function saveExpenses() {
-  localStorage.setItem("local_expenses_backup", JSON.stringify(expenses));
-}
-
-// Rellenar dinámicamente los años con transacciones en el selector financiero
-function populateFinanceYears() {
-  const yearSelect = document.getElementById("finance-year");
-  if (!yearSelect) return;
-  
-  const years = new Set();
-  years.add(new Date().getFullYear());
-  
-  bookings.forEach(b => {
-    const y = parseInt(b.date.split("-")[0]);
-    if (y) years.add(y);
-  });
-  
-  expenses.forEach(e => {
-    const y = parseInt(e.date.split("-")[0]);
-    if (y) years.add(y);
-  });
-  
-  const currentVal = yearSelect.value;
-  yearSelect.innerHTML = "";
-  
-  Array.from(years).sort((a, b) => b - a).forEach(y => {
-    const opt = document.createElement("option");
-    opt.value = y;
-    opt.innerText = y;
-    yearSelect.appendChild(opt);
-  });
-  
-  if (currentVal && Array.from(years).map(String).includes(currentVal)) {
-    yearSelect.value = currentVal;
-  } else {
-    yearSelect.value = new Date().getFullYear();
-  }
-}
-
-// Calcular y renderizar el Resumen de Ganancias del mes/año seleccionado
-function updateFinanceSummary() {
-  const yearSelect = document.getElementById("finance-year");
-  const monthSelect = document.getElementById("finance-month");
-  if (!yearSelect || !monthSelect) return;
-
-  const yearVal = parseInt(yearSelect.value);
-  const monthVal = monthSelect.value; // "all" o índice de mes "0" a "11"
-  
-  // Filtrar Reservas (desencriptando las ganancias si corresponde)
-  const decryptedBookingsList = getDecryptedBookings();
-  let filteredBookings = decryptedBookingsList.filter(b => {
-    const [y, m, d] = b.date.split("-").map(Number);
-    if (y !== yearVal) return false;
-    if (monthVal !== "all" && (m - 1) !== parseInt(monthVal)) return false;
-    return true;
-  });
-  
-  // Filtrar Gastos
-  let filteredExpenses = expenses.filter(e => {
-    const [y, m, d] = e.date.split("-").map(Number);
-    if (y !== yearVal) return false;
-    if (monthVal !== "all" && (m - 1) !== parseInt(monthVal)) return false;
-    return true;
-  });
-  
-  // Calcular sumas
-  const totalIncome = filteredBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
-  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const netProfit = totalIncome - totalExpenses;
-  
-  // Actualizar estadísticas en UI
-  document.getElementById("stat-total-income").innerText = `$${totalIncome.toLocaleString()}`;
-  document.getElementById("stat-total-expenses").innerText = `$${totalExpenses.toLocaleString()}`;
-  
-  const netEl = document.getElementById("stat-net-profit");
-  netEl.innerText = `$${netProfit.toLocaleString()}`;
-  if (netProfit >= 0) {
-    netEl.style.color = "var(--success)";
-  } else {
-    netEl.style.color = "var(--danger)";
-  }
-}
-
-// Registrar un Gasto desde el formulario admin
-function handleAdminAddExpense(event) {
-  event.preventDefault();
-  const date = document.getElementById("expense-date").value;
-  const category = document.getElementById("expense-category").value;
-  const desc = document.getElementById("expense-desc").value.trim();
-  const amount = parseInt(document.getElementById("expense-amount").value) || 0;
-  
-  const newExpense = {
-    id: Date.now(),
-    date,
-    category,
-    desc,
-    amount
-  };
-  
-  expenses.push(newExpense);
-  saveExpenses();
-  
-  // Limpiar campos del formulario
-  document.getElementById("expense-desc").value = "";
-  document.getElementById("expense-amount").value = "";
-  
-  renderExpenses();
-  updateFinanceSummary();
-  populateFinanceYears();
-  alert("Gasto registrado correctamente.");
-}
-
-// Eliminar un Gasto
-function deleteExpense(id) {
-  if (confirm("¿Estás seguro de que deseas eliminar este gasto del historial?")) {
-    expenses = expenses.filter(e => e.id !== id);
-    saveExpenses();
-    
-    renderExpenses();
-    updateFinanceSummary();
-    populateFinanceYears();
-  }
-}
-
-// Renderizar la tabla de listado de gastos
-function renderExpenses() {
-  const tbody = document.getElementById("admin-expenses-list");
-  if (!tbody) return;
-  tbody.innerHTML = "";
-  
-  // Ordenar gastos por fecha descendiente
-  const sortedExpenses = [...expenses].sort((a, b) => b.date.localeCompare(a.date));
-  
-  if (sortedExpenses.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-secondary">No hay gastos registrados en el historial.</td></tr>`;
-    return;
-  }
-  
-  sortedExpenses.forEach(e => {
-    const tr = document.createElement("tr");
-    const formattedDate = e.date.split("-").reverse().join("/");
-    
-    tr.innerHTML = `
-      <td><strong>${formattedDate}</strong></td>
-      <td><span class="badge ${getCategoryBadgeClass(e.category)}">${e.category}</span></td>
-      <td>${e.desc}</td>
-      <td style="font-weight: 600; color: var(--danger)">$${e.amount}</td>
-      <td>
-        <button class="btn btn-sm btn-outline-danger" onclick="deleteExpense(${e.id})">
-          <i class="fa-regular fa-trash-can"></i>
-        </button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-// Retorna la clase de estilo del badge según la categoría del gasto
-function getCategoryBadgeClass(cat) {
-  switch (cat) {
-    case "Limpieza": return "badge-success";
-    case "Mantenimiento": return "badge-danger";
-    case "Servicios": return "badge-warning";
-    default: return "badge-secondary";
-  }
-}
-
-// Descargar Gastos en formato JSON crudo
-function downloadExpensesJSON() {
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(expenses, null, 2));
-  const downloadAnchor = document.createElement("a");
-  downloadAnchor.setAttribute("href", dataStr);
-  downloadAnchor.setAttribute("download", "gastos.json");
-  document.body.appendChild(downloadAnchor);
-  downloadAnchor.click();
-  downloadAnchor.remove();
-}
-
-// Descargar reporte de Gastos en formato Excel (CSV)
-function downloadExpensesCSV() {
-  let csvContent = "\uFEFF"; // Añadir BOM UTF-8 para compatibilidad de acentos en Excel
-  csvContent += "Fecha,Categoría,Descripción,Monto ($)\n";
-  
-  expenses.forEach(e => {
-    const formattedDate = e.date.split("-").reverse().join("/");
-    const row = `"${formattedDate}","${e.category}","${e.desc}",${e.amount}`;
-    csvContent += row + "\n";
-  });
-  
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", "reporte_gastos_quincho.csv");
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-}
-
-// Detecta imágenes adicionales subidas por el usuario en la carpeta assets (foto1.jpg, foto2.jpg, etc.)
-async function initCarouselGallery() {
-  const defaultSlides = [
-    { url: "./assets/quincho-main.jpg", title: "Salón & Parrilla", desc: "Espacio climatizado con asador profesional." },
-    { url: "./assets/quincho-pool.jpg", title: "Piscina & Parque", desc: "Hermoso parque iluminado con pileta cristalina." }
-  ];
-
-  // Escanear en paralelo por foto1.jpg hasta foto12.jpg
-  const maxPhotos = 12;
-  const scanPromises = [];
-
-  for (let i = 1; i <= maxPhotos; i++) {
-    const url = `./assets/foto${i}.jpg`;
-    scanPromises.push(
-      new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve({ url, title: `Instalaciones ${i}`, desc: "Vista de nuestro quincho para eventos." });
-        img.onerror = () => resolve(null);
-        img.src = url;
-      })
-    );
-  }
-
-  const scannedResults = await Promise.all(scanPromises);
-  const validScanned = scannedResults.filter(slide => slide !== null);
-
-  // Combinar los predeterminados con los escaneados
-  const allSlides = [...defaultSlides, ...validScanned];
-
-  // Si hay más fotos, regeneramos el carrusel
-  if (validScanned.length > 0) {
-    const track = document.getElementById("carousel-track");
-    const indicators = document.getElementById("carousel-indicators");
-    
-    if (track && indicators) {
-      track.innerHTML = "";
-      indicators.innerHTML = "";
-
-      allSlides.forEach((slide, index) => {
-        // Generar Slide
-        const slideEl = document.createElement("div");
-        slideEl.className = `carousel-slide ${index === 0 ? 'active' : ''}`;
-        slideEl.innerHTML = `
-          <img src="${slide.url}" alt="${slide.title}">
-          <div class="slide-caption">
-            <h3>${slide.title}</h3>
-            <p>${slide.desc}</p>
-          </div>
-        `;
-        track.appendChild(slideEl);
-
-        // Generar Indicador
-        const indEl = document.createElement("span");
-        indEl.className = `indicator ${index === 0 ? 'active' : ''}`;
-        indEl.addEventListener("click", () => setCarouselSlide(index));
-        indicators.appendChild(indEl);
-      });
-      
-      // Reiniciar index del carrusel
-      currentCarouselIndex = 0;
-    }
-  }
-}
-
-// Obtener feriados oficiales de Argentina desde la API o usar respaldo fijo
-async function fetchHolidays(year) {
-  try {
-    const response = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/AR`);
-    if (response.ok) {
-      const data = await response.json();
-      holidays = data.map(h => h.date);
-      holidayNames = {};
-      data.forEach(h => {
-        holidayNames[h.date] = h.localName;
-      });
-      console.log(`Feriados de Argentina para ${year} cargados con éxito:`, data.length);
-    } else {
-      throw new Error("Respuesta de API no exitosa");
-    }
-  } catch (err) {
-    console.warn("No se pudieron obtener los feriados desde la API, usando feriados básicos de respaldo", err);
-    // Respaldo de feriados nacionales fijos en Argentina
-    const fixedHolidays = [
-      { date: `${year}-01-01`, name: "Año Nuevo" },
-      { date: `${year}-03-24`, name: "Día de la Memoria" },
-      { date: `${year}-04-02`, name: "Día de Malvinas" },
-      { date: `${year}-05-01`, name: "Día del Trabajador" },
-      { date: `${year}-05-25`, name: "Revolución de Mayo" },
-      { date: `${year}-06-20`, name: "Día de la Bandera" },
-      { date: `${year}-07-09`, name: "Día de la Independencia" },
-      { date: `${year}-08-17`, name: "Paso a la Inmortalidad del Gral. San Martín" },
-      { date: `${year}-10-12`, name: "Día del Respeto a la Diversidad Cultural" },
-      { date: `${year}-11-20`, name: "Día de la Soberanía Nacional" },
-      { date: `${year}-12-08`, name: "Inmaculada Concepción" },
-      { date: `${year}-12-25`, name: "Navidad" }
-    ];
-    holidays = fixedHolidays.map(h => h.date);
-    holidayNames = {};
-    fixedHolidays.forEach(h => {
-      holidayNames[h.date] = h.name;
-    });
-  }
-}
-
-// --- CALENDARIO ADMINISTRADOR INTERACTIVO ---
-
-// Renderizar el calendario de reservas dentro del panel de administración
-async function renderAdminCalendar() {
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  
-  // Nombre del mes y año en el encabezado del admin
-  const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-  const headerEl = document.getElementById("admin-calendar-month-year");
-  if (headerEl) {
-    headerEl.innerText = `${monthNames[month]} ${year}`;
-  }
-
-  const grid = document.getElementById("admin-calendar-days-grid");
-  if (!grid) return;
-  grid.innerHTML = "";
-
-  // Primer día de la semana del mes (0 = Domingo, 1 = Lunes, etc.)
-  const firstDayIndex = new Date(year, month, 1).getDay();
-  // Cantidad de días del mes
-  const totalDays = new Date(year, month + 1, 0).getDate();
-
-  // Días vacíos para completar el inicio del mes
-  for (let i = 0; i < firstDayIndex; i++) {
-    const emptyDay = document.createElement("div");
-    emptyDay.classList.add("calendar-day", "empty");
-    grid.appendChild(emptyDay);
-  }
-
-  // Días válidos del mes
-  for (let day = 1; day <= totalDays; day++) {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const dayEl = document.createElement("div");
-    dayEl.classList.add("calendar-day");
-
-    // Determinar si es fin de semana (Domingo o Sábado)
-    const dayOfWeek = new Date(year, month, day).getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    if (isWeekend) {
-      dayEl.classList.add("weekend");
-    }
-
-    // Determinar si es feriado en Argentina
-    const isHoliday = holidays.includes(dateStr);
-    if (isHoliday) {
-      dayEl.classList.add("holiday");
-      dayEl.setAttribute("title", holidayNames[dateStr] || "Feriado");
-    }
-
-    // Buscar reservas para este día
-    const dayBookings = bookings.filter(b => b.date === dateStr);
-    const dayReserved = dayBookings.some(b => b.slot === "day");
-    const nightReserved = dayBookings.some(b => b.slot === "night");
-
-    // Asignar clases de gradiente dividido en diagonal (135deg)
-    if (dayReserved && nightReserved) {
-      dayEl.classList.add("day-booked-night-booked");
-    } else if (dayReserved) {
-      dayEl.classList.add("day-booked-night-free");
-    } else if (nightReserved) {
-      dayEl.classList.add("day-free-night-booked");
-    } else {
-      dayEl.classList.add("day-free-night-free");
-    }
-
-    dayEl.innerHTML = `<span class="day-number">${day}</span>`;
-
-    // Si es el día seleccionado actualmente en el panel admin
-    if (adminSelectedDateStr === dateStr) {
-      dayEl.classList.add("selected");
-    }
-
-    // Click en el día en modo admin
-    dayEl.addEventListener("click", () => {
-      document.querySelectorAll("#admin-calendar-days-grid .calendar-day").forEach(el => el.classList.remove("selected"));
-      dayEl.classList.add("selected");
-      adminSelectedDateStr = dateStr;
-      
-      // Mostrar el formulario desplegable
-      openAdminBookingForm(dateStr);
-    });
-
-    grid.appendChild(dayEl);
-  }
-}
-
-// Desplegar campos para ingresar datos de la reserva
-function openAdminBookingForm(dateStr) {
-  const [year, month, day] = dateStr.split("-");
-  const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-  
-  // Guardar la fecha en el input oculto
-  document.getElementById("admin-date").value = dateStr;
-  
-  // Actualizar el título de los campos de datos
-  document.getElementById("admin-booking-fields-title").innerText = `Registrar reserva para el día ${day} de ${months[parseInt(month) - 1]} de ${year}`;
-  
-  // Mostrar el contenedor collapsible (remover clase hidden)
-  const collapsible = document.getElementById("admin-booking-fields-collapsible");
-  collapsible.classList.remove("hidden");
-  
-  // Hacer scroll suave hacia el formulario para pantallas móviles
-  collapsible.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-// Importar reservas desde un archivo JSON local y subirlas a Supabase si aplica
-function handleImportJSON(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = async function(e) {
-    try {
-      const importedBookings = JSON.parse(e.target.result);
-      if (!Array.isArray(importedBookings)) {
-        alert("El archivo JSON debe contener un arreglo de reservas.");
-        return;
-      }
-
-      if (confirm(`¿Deseas importar ${importedBookings.length} reservas y sincronizarlas? esto reemplazará tus reservas actuales.`)) {
-        bookings = importedBookings;
-        localStorage.setItem("local_bookings_backup", JSON.stringify(bookings));
-
-        // Si hay Supabase configurado, subir en lote
-        if (supabaseUrl && supabaseKey) {
-          try {
-            // 1. Borrar todas las reservas en Supabase
-            console.log("Limpiando base de datos Supabase para importación...");
-            const delRes = await fetch(`${supabaseUrl}/rest/v1/bookings?select=*`, {
-              method: "DELETE",
-              headers: {
-                "apikey": supabaseKey,
-                "Authorization": `Bearer ${supabaseKey}`
-              }
-            });
-            
-            if (delRes.ok) {
-              // 2. Insertar las reservas importadas en lote
-              console.log("Subiendo lote de reservas a Supabase...");
-              const insertRes = await fetch(`${supabaseUrl}/rest/v1/bookings`, {
-                method: "POST",
-                headers: {
-                  "apikey": supabaseKey,
-                  "Authorization": `Bearer ${supabaseKey}`,
-                  "Content-Type": "application/json",
-                  "Prefer": "return=minimal"
-                },
-                body: JSON.stringify(bookings)
-              });
-              if (insertRes.ok) {
-                alert("Importación y sincronización con la nube exitosa.");
-              } else {
-                alert("Reservas guardadas localmente, pero falló la subida en lote a Supabase.");
-              }
-            } else {
-              alert("Reservas guardadas localmente. No se pudo limpiar Supabase.");
-            }
-          } catch (err) {
-            console.error("Error al subir importación a Supabase:", err);
-            alert("Reservas guardadas localmente. Error de conexión con Supabase.");
-          }
+      ],
+      "categories": [
+        { "id": "infantiles_4_y_5_años", "name": "INFANTILES 4 Y 5 AÑOS 100 MTS", "minAge": 4, "maxAge": 5 },
+        { "id": "infantiles_6_y_7_años", "name": "INFANTILES 6 Y 7 AÑOS 200 MTS", "minAge": 6, "maxAge": 7 },
+        { "id": "infantiles_8_y_9_años", "name": "INFANTILES 8 Y 9 AÑOS 400 MTS", "minAge": 8, "maxAge": 9 },
+        { "id": "infantiles_10_y_11_años", "name": "INFANTILES 10 Y 11 AÑOS 800 MTS", "minAge": 10, "maxAge": 11 },
+        { "id": "infantiles_12_y_13_años", "name": "INFANTILES 12 Y 13 AÑOS 1200 MTS", "minAge": 12, "maxAge": 13 },
+        { "id": "damas_5_kms", "name": "DAMAS 5 KMS LIBRE", "minAge": 13, "maxAge": 80 },
+        { "id": "caballeros_5_kms_libre", "name": "CABALLEROS 5 KMS LIBRE", "minAge": 13, "maxAge": 80 },
+        { "id": "damas_15_kms_16_a_19_años", "name": "DAMAS 15 KMS 16  A 19 AÑOS", "minAge": 16, "maxAge": 19 },
+        { "id": "damas_15_kms_20_a_29_años", "name": "DAMAS 15 KMS 20 A 29 AÑOS", "minAge": 20, "maxAge": 29 },
+        { "id": "damas_15_kms_30_a_39_años", "name": "DAMAS 15 KMS 30 A 39 AÑOS", "minAge": 30, "maxAge": 39 },
+        { "id": "damas_15_kms_40_a_49_años", "name": "DAMAS 15 KMS 40 A 49 AÑOS", "minAge": 40, "maxAge": 49 },
+        { "id": "damas_15_kms_50_a_59_años", "name": "DAMAS 15 KMS 50 A 59 AÑOS", "minAge": 50, "maxAge": 59 },
+        { "id": "damas_15_kms_60_a_69_años", "name": "DAMAS 15 KMS 60 A 69 AÑOS", "minAge": 60, "maxAge": 69 },
+        { "id": "15_kms_caballeros_16_a_19_años", "name": "15 KMS CABALLEROS 16 A 19 AÑOS", "minAge": 16, "maxAge": 19 },
+        { "id": "15_kms_caballeros_20_a_29_años", "name": "15 KMS CABALLEROS 20 A 29 AÑOS", "minAge": 20, "maxAge": 29 },
+        { "id": "15_kms_caballeros_30_a_39_años", "name": "15 KMS CABALLEROS 30 A 39 AÑOS", "minAge": 30, "maxAge": 39 },
+        { "id": "15_kms_caballeros_40_a_49_años", "name": "15 KMS CABALLEROS 40 A 49 AÑOS", "minAge": 40, "maxAge": 49 },
+        { "id": "15_kms_caballeros_50_a_59_años", "name": "15 KMS CABALLEROS 50 A 59 AÑOS", "minAge": 50, "maxAge": 59 },
+        { "id": "15_kms_caballeros_60_a_69_años", "name": "15 KMS CABALLEROS 60 A 69 AÑOS", "minAge": 60, "maxAge": 69 }
+      ]
+    };
+
+    // 1. CARGA DE CONFIGURACIÓN DINÁMICA
+    async function loadConfig() {
+        if (typeof window.RACE_CONFIG !== 'undefined' && window.RACE_CONFIG) {
+            console.log('Cargada configuración dinámica local desde config.js');
+            config = window.RACE_CONFIG;
+            renderRaceDetails();
         } else {
-          alert("Importación local exitosa.");
+            // Intentar fetch config.json por compatibilidad hacia atrás
+            try {
+                const response = await fetch('./config.json');
+                config = await response.json();
+                console.log('Cargada configuración dinámica desde config.json');
+                renderRaceDetails();
+            } catch (error) {
+                console.warn('Advertencia: No se detectó config.js ni se pudo cargar config.json. Usando configuración de respaldo integrada.');
+                config = FALLBACK_CONFIG;
+                renderRaceDetails();
+            }
+        }
+    }
+
+    function renderRaceDetails() {
+        if (!config) return;
+
+        // Configuración de la interfaz
+        raceTitle.textContent = config.raceName || 'CARRERA DE TRAIL';
+        footerRaceName.textContent = config.raceName || 'Trail Running Portal';
+        
+        // Carga de descripción de la carrera
+        const raceDescriptionText = document.getElementById('race-description-text');
+        if (raceDescriptionText) {
+            raceDescriptionText.textContent = config.raceDescription || '¡Prepárate para una gran carrera! Los detalles del desafío e inscripciones ya están abiertos.';
+        }
+        
+        // Carga de fondo de la web (Background Overlay)
+        const BACKGROUND_THEMES = {
+            default: './assets/trail_background.jpg',
+            snow: './assets/snow_mountain.jpg',
+            sunset: './assets/sunset_ridge.jpg',
+            rocky: './assets/rocky_valley.jpg',
+            solid: 'none'
+        };
+        const bgPath = BACKGROUND_THEMES[config.themeBackground] || BACKGROUND_THEMES.default;
+        if (bgPath === 'none') {
+            bgOverlay.style.backgroundImage = 'none';
+        } else {
+            bgOverlay.style.backgroundImage = `url('${bgPath}')`;
+        }
+        
+        // Cargar afiche principal visible (Flyer)
+        const posterBanner = document.getElementById('poster-banner');
+        const posterBannerContainer = document.getElementById('poster-banner-container');
+        if (config.posterImage) {
+            if (posterBanner && posterBannerContainer) {
+                posterBanner.src = config.posterImage;
+                posterBannerContainer.classList.remove('hidden');
+            }
+        } else {
+            if (posterBannerContainer) {
+                posterBannerContainer.classList.add('hidden');
+            }
+        }
+        
+        // Cargar logo oficial en el encabezado
+        const logoImageElement = document.getElementById('logo-image');
+        const logoHeaderContainer = document.getElementById('logo-header-container');
+        if (config.logoImage) {
+            if (logoImageElement && logoHeaderContainer) {
+                logoImageElement.src = config.logoImage;
+                logoHeaderContainer.classList.remove('hidden');
+            }
+        } else {
+            if (logoHeaderContainer) {
+                logoHeaderContainer.classList.add('hidden');
+            }
+        }
+        
+        // Configurar botón flotante de WhatsApp
+        const whatsappBtn = document.getElementById('whatsapp-btn');
+        if (whatsappBtn) {
+            if (config.contactWhatsapp && config.contactWhatsapp.trim() !== '') {
+                const cleanPhone = config.contactWhatsapp.replace(/\D/g, '');
+                whatsappBtn.href = `https://wa.me/${cleanPhone}?text=Hola!%20Tengo%20una%20consulta%20sobre%20la%20carrera%20${encodeURIComponent(config.raceName || 'Trail')}`;
+                whatsappBtn.classList.remove('hidden');
+            } else {
+                whatsappBtn.classList.add('hidden');
+            }
+        }
+        
+        if (config.tshirtImage) {
+            tshirtImage.src = config.tshirtImage;
+            document.getElementById('tshirt-preview-card').classList.remove('hidden');
+        } else {
+            document.getElementById('tshirt-preview-card').classList.add('hidden');
         }
 
-        // Refrescar UI
-        renderCalendar();
-        renderAdminCalendar();
-        updateFinanceSummary();
-        renderAdminBookings();
-      }
-    } catch (err) {
-      alert("Error al leer el archivo JSON: " + err.message);
+        if (config.altitudeMapImage) {
+            altimetryImage.src = config.altitudeMapImage;
+            document.getElementById('altimetry-card').classList.remove('hidden');
+        } else {
+            document.getElementById('altimetry-card').classList.add('hidden');
+        }
+
+        // Datos de pago
+        // Datos de pago con resaltado de Alias y CBU e interactividad para copiar
+        let payText = config.paymentDetails || 'No se han configurado los detalles de pago.';
+        payText = payText.replace(/Alias:\s*([^\n\r]+)/gi, '<strong>Alias:</strong> <span class="highlight-pay clickable-copy" data-copy="$1" title="Toca para copiar">$1 <i class="fa-solid fa-copy" style="font-size: 0.8rem; margin-left: 0.25rem; opacity: 0.7;"></i></span>');
+        payText = payText.replace(/CBU:\s*([^\n\r]+)/gi, '<strong>CBU:</strong> <span class="highlight-pay clickable-copy" data-copy="$1" title="Toca para copiar">$1 <i class="fa-solid fa-copy" style="font-size: 0.8rem; margin-left: 0.25rem; opacity: 0.7;"></i></span>');
+        paymentDetailsText.innerHTML = payText;
+
+        // Escuchar clics para copiar al portapapeles con retroalimentación visual
+        paymentDetailsText.addEventListener('click', (e) => {
+            const clickable = e.target.closest('.clickable-copy');
+            if (clickable) {
+                const textToCopy = clickable.getAttribute('data-copy').trim();
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    const originalHTML = clickable.innerHTML;
+                    clickable.innerHTML = `¡Copiado! <i class="fa-solid fa-check" style="color: var(--success);"></i>`;
+                    clickable.style.borderColor = '#00e676';
+                    clickable.style.color = '#00e676';
+                    
+                    setTimeout(() => {
+                        clickable.innerHTML = originalHTML;
+                        clickable.style.borderColor = '';
+                        clickable.style.color = '';
+                    }, 1500);
+                }).catch(err => {
+                    console.error('Error al copiar al portapapeles:', err);
+                });
+            }
+        });
+
+        // Links de descargas y mapas
+        deslindeDownload.href = config.deslindeLink || '#';
+        
+        if (config.gpxLink && config.gpxLink !== '#') {
+            gpxBtn.href = config.gpxLink;
+            gpxBtn.classList.remove('hidden');
+        } else {
+            gpxBtn.classList.add('hidden');
+        }
+
+        if (config.kmlLink && config.kmlLink !== '#') {
+            kmlBtn.href = config.kmlLink;
+            kmlBtn.classList.remove('hidden');
+        } else {
+            kmlBtn.classList.add('hidden');
+        }
+
+        if (config.startLocationMapLink && config.startLocationMapLink !== '#') {
+            startLocationBtn.href = config.startLocationMapLink;
+            startLocationBtn.classList.remove('hidden');
+        } else {
+            startLocationBtn.classList.add('hidden');
+        }
+
+        // Renderizado de tarjetas de distancia
+        distancesContainer.innerHTML = '';
+        if (config.distances && config.distances.length > 0) {
+            config.distances.forEach(dist => {
+                const card = document.createElement('div');
+                card.className = 'selector-card';
+                card.dataset.id = dist.id;
+                card.dataset.price = dist.price;
+                card.dataset.name = dist.name;
+
+                card.innerHTML = `
+                    <div class="card-title">${dist.id}</div>
+                    <div class="card-subtitle">${dist.name}</div>
+                    <div class="card-detail">${dist.detail || ''}</div>
+                    <div class="card-price">$${dist.price.toLocaleString('es-AR')}</div>
+                `;
+
+                card.addEventListener('click', () => selectDistance(card));
+                distancesContainer.appendChild(card);
+            });
+
+            // Seleccionar automáticamente la primera distancia para inicializar
+            const firstCard = distancesContainer.querySelector('.selector-card');
+            if (firstCard) {
+                selectDistance(firstCard);
+            }
+        }
+
+        // Cargar Auspiciantes (Sponsors)
+        const sponsorsContainer = document.getElementById('sponsors-container');
+        if (sponsorsContainer) {
+            sponsorsContainer.innerHTML = '';
+            const sponsorsList = (config.sponsors && config.sponsors.length > 0) 
+                ? config.sponsors 
+                : [
+                    'Auspiciante 1',
+                    'Auspiciante 2',
+                    'Auspiciante 3',
+                    'Auspiciante 4'
+                ];
+
+            // Detectar si hay un único sponsor y es una imagen
+            const isSingleImage = sponsorsList.length === 1 && 
+                (sponsorsList[0].startsWith('data:') || 
+                 sponsorsList[0].startsWith('./') || 
+                 sponsorsList[0].startsWith('http') || 
+                 sponsorsList[0].startsWith('assets/') ||
+                 sponsorsList[0].toLowerCase().endsWith('.png') ||
+                 sponsorsList[0].toLowerCase().endsWith('.jpg') ||
+                 sponsorsList[0].toLowerCase().endsWith('.jpeg'));
+
+            if (isSingleImage) {
+                // Formato de afiche único (A4 o vertical)
+                sponsorsContainer.style.display = 'block';
+                sponsorsContainer.style.textAlign = 'center';
+                sponsorsContainer.innerHTML = `
+                    <div style="margin: 0 auto; max-width: 480px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); box-shadow: 0 8px 24px rgba(0,0,0,0.35); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: rgba(255, 255, 255, 0.02);" class="single-sponsor-poster-container">
+                        <img src="${sponsorsList[0]}" alt="Auspiciantes Oficiales" style="width: 100%; height: auto; max-height: 650px; object-fit: contain; display: block; filter: grayscale(12%); transition: all 0.3s ease;" class="single-sponsor-img">
+                    </div>
+                `;
+                
+                // Añadir interactividad de hover premium
+                const singleCont = sponsorsContainer.querySelector('.single-sponsor-poster-container');
+                const singleImg = sponsorsContainer.querySelector('.single-sponsor-img');
+                if (singleCont && singleImg) {
+                    singleCont.addEventListener('mouseenter', () => {
+                        singleCont.style.transform = 'translateY(-4px) scale(1.015)';
+                        singleCont.style.borderColor = 'var(--accent-cyan)';
+                        singleCont.style.boxShadow = '0 12px 30px rgba(0, 242, 254, 0.25)';
+                        singleImg.style.filter = 'grayscale(0%)';
+                    });
+                    singleCont.style.cursor = 'pointer';
+                    singleCont.addEventListener('mouseleave', () => {
+                        singleCont.style.transform = 'none';
+                        singleCont.style.borderColor = '';
+                        singleCont.style.boxShadow = '';
+                        singleImg.style.filter = 'grayscale(12%)';
+                    });
+                }
+            } else {
+                // Formato de grilla normal (múltiples logos)
+                sponsorsContainer.style.display = 'flex';
+                sponsorsContainer.style.justifyContent = 'center';
+                sponsorsContainer.style.alignItems = 'center';
+                sponsorsContainer.style.gap = '1rem';
+                sponsorsContainer.style.flexWrap = 'wrap';
+
+                sponsorsList.forEach(sponsor => {
+                    const card = document.createElement('div');
+                    card.className = 'sponsor-logo-card';
+                    
+                    if (sponsor.startsWith('data:') || sponsor.startsWith('./') || sponsor.startsWith('http') || sponsor.startsWith('assets/')) {
+                        card.innerHTML = `<img src="${sponsor}" alt="Sponsor" class="sponsor-img">`;
+                    } else {
+                        card.innerHTML = `<span class="sponsor-placeholder-text"><i class="fa-solid fa-medal" style="color: var(--accent-cyan); margin-right: 0.3rem;"></i> ${sponsor}</span>`;
+                    }
+                    
+                    sponsorsContainer.appendChild(card);
+                });
+            }
+        }
+
+        // Cargar mapa interactivo GPX
+        loadGpxMap();
     }
-  };
-  reader.readAsText(file);
-}
 
-// --- EDICIÓN DE RESERVAS DESDE EL PANEL DE ADMINISTRACIÓN ---
+    // 2. SELECCIÓN DE DISTANCIA
+    function selectDistance(cardElement) {
+        document.querySelectorAll('.selector-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        cardElement.classList.add('selected');
 
-// Activar modo edición cargando los datos de la reserva en el formulario
-function editBookingAdmin(date, slot) {
-  const booking = bookings.find(b => b.date === date && b.slot === slot);
-  if (!booking) return;
+        const selectedId = cardElement.dataset.id;
+        const selectedPrice = parseFloat(cardElement.dataset.price);
+        const selectedName = cardElement.dataset.name;
 
-  isEditMode = true;
-  editOriginalDate = date;
-  editOriginalSlot = slot;
+        // 1. Guardar en los campos ocultos del formulario
+        document.getElementById('selected-distance-id').value = selectedId;
+        document.getElementById('selected-distance-price').value = selectedPrice;
+        
+        // 2. Actualizar el resumen del formulario
+        document.getElementById('selected-distance-summary-title').textContent = `${selectedId} - ${selectedName}`;
+        document.getElementById('selected-distance-summary-price').textContent = `$${selectedPrice.toLocaleString('es-AR')}`;
 
-  const key = sessionStorage.getItem("admin_key") || SECRET_KEY;
-  const decName = booking.isEncrypted ? decrypt(booking.name, key) : booking.name;
-  const decPhone = booking.isEncrypted ? decrypt(booking.phone, key) : booking.phone;
-  const decTotalPrice = booking.isEncrypted ? Number(decrypt(booking.totalPrice, key)) : booking.totalPrice;
-  const decDeposit = booking.isEncrypted ? Number(decrypt(booking.deposit, key)) : booking.deposit;
-  const decNotes = booking.isEncrypted ? decrypt(booking.notes, key) : booking.notes;
+        // 3. Actualizar el panel de detalles del dashboard
+        const currentDist = config.distances.find(d => d.id === selectedId);
+        if (currentDist) {
+            document.getElementById('dashboard-dist-title').textContent = `${currentDist.id} - ${currentDist.name}`;
+            document.getElementById('dashboard-dist-price').textContent = `$${currentDist.price.toLocaleString('es-AR')}`;
+            document.getElementById('dashboard-dist-detail').textContent = currentDist.detail || 'Circuito competitivo de trail running con senderos naturales y paisajes desafiantes.';
 
-  // Prefilar formulario
-  document.getElementById("admin-date").value = date;
-  document.getElementById("admin-slot").value = slot;
-  document.getElementById("admin-name").value = decName.replace('[GCal] ', '');
-  document.getElementById("admin-phone").value = decPhone === 'GCal' ? '' : decPhone;
-  document.getElementById("admin-total-price").value = decTotalPrice || 0;
-  document.getElementById("admin-deposit").value = decDeposit || 0;
-  document.getElementById("admin-notes").value = decNotes || "";
+            // Descargas específicas de la distancia
+            const gpxBtn = document.getElementById('gpx-btn');
+            const kmlBtn = document.getElementById('kml-btn');
+            const startLocationBtn = document.getElementById('start-location-btn');
 
-  // Cambiar textos y botones del formulario
-  const [year, month, day] = date.split("-");
-  const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-  
-  document.getElementById("admin-booking-fields-title").innerText = `Modificar reserva del ${day} de ${months[parseInt(month) - 1]} de ${year}`;
-  
-  // Cambiar submit a Guardar y mostrar el botón Cancelar
-  const submitBtn = document.getElementById("admin-submit-btn");
-  if (submitBtn) submitBtn.innerText = "Guardar Cambios";
-  
-  const cancelBtn = document.getElementById("admin-cancel-edit-btn");
-  if (cancelBtn) cancelBtn.classList.remove("hidden");
+            if (currentDist.gpxLink && currentDist.gpxLink !== '#') {
+                gpxBtn.href = currentDist.gpxLink;
+                gpxBtn.classList.remove('hidden');
+            } else if (config.gpxLink && config.gpxLink !== '#') {
+                gpxBtn.href = config.gpxLink;
+                gpxBtn.classList.remove('hidden');
+            } else {
+                gpxBtn.classList.add('hidden');
+            }
 
-  // Mostrar el formulario desplegable
-  const collapsible = document.getElementById("admin-booking-fields-collapsible");
-  if (collapsible) {
-    collapsible.classList.remove("hidden");
-    // Desplazar la pantalla suavemente hacia el formulario
-    collapsible.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-}
+            // KML y Largada (usar específicos o globales como fallback)
+            if (config.kmlLink && config.kmlLink !== '#') {
+                kmlBtn.href = config.kmlLink;
+                kmlBtn.classList.remove('hidden');
+            } else {
+                kmlBtn.classList.add('hidden');
+            }
 
-// Cancelar el modo edición y resetear los campos del formulario
-function cancelAdminEdit() {
-  isEditMode = false;
-  editOriginalDate = null;
-  editOriginalSlot = null;
+            if (config.startLocationMapLink && config.startLocationMapLink !== '#') {
+                startLocationBtn.href = config.startLocationMapLink;
+                startLocationBtn.classList.remove('hidden');
+            } else {
+                startLocationBtn.classList.add('hidden');
+            }
+        }
+        
+        // 4. Cargar altimetría dinámica específica para esta distancia
+        const specAlti = currentDist ? currentDist.altitudeMapImage : null;
+        if (specAlti) {
+            altimetryImage.src = specAlti;
+            document.getElementById('altimetry-card').classList.remove('hidden');
+        } else if (config.altitudeMapImage) {
+            altimetryImage.src = config.altitudeMapImage;
+            document.getElementById('altimetry-card').classList.remove('hidden');
+        } else {
+            document.getElementById('altimetry-card').classList.add('hidden');
+        }
 
-  // Resetear textos y botones del formulario
-  const submitBtn = document.getElementById("admin-submit-btn");
-  if (submitBtn) submitBtn.innerText = "Confirmar Reserva";
+        // Configurar obligatoriedad del CUIL si es la distancia INFANTILES
+        const cuilInput = document.getElementById('cuil');
+        const cuilReqIndicator = document.getElementById('cuil-req-indicator');
+        if (selectedId === 'INFANTILES') {
+            if (cuilInput) cuilInput.removeAttribute('required');
+            if (cuilReqIndicator) cuilReqIndicator.innerHTML = '(Opcional - 11 dígitos)';
+        } else {
+            if (cuilInput) cuilInput.setAttribute('required', 'required');
+            if (cuilReqIndicator) cuilReqIndicator.innerHTML = '* (11 dígitos exactos)';
+        }
 
-  const cancelBtn = document.getElementById("admin-cancel-edit-btn");
-  if (cancelBtn) cancelBtn.classList.add("hidden");
+        // Recalcular categoría
+        recalculateCategory();
+        
+        hideError();
 
-  // Limpiar campos
-  document.getElementById("admin-name").value = "";
-  document.getElementById("admin-phone").value = "";
-  document.getElementById("admin-total-price").value = "";
-  document.getElementById("admin-deposit").value = "0";
-  document.getElementById("admin-notes").value = "";
+        // Cargar mapa GPX
+        loadGpxMap();
+    }
 
-  // Ocultar formulario colapsable
-  const collapsible = document.getElementById("admin-booking-fields-collapsible");
-  if (collapsible) {
-    collapsible.classList.add("hidden");
-  }
+    // 3. VALIDACIÓN DE CUIL (11 dígitos, solo números)
+    inputCuil.addEventListener('input', (e) => {
+        // Remover cualquier caracter no numérico
+        let cleanValue = e.target.value.replace(/\D/g, '');
+        e.target.value = cleanValue; // Limitar entrada a números únicamente
+    });
 
-  // Quitar la selección del calendario
-  document.querySelectorAll("#admin-calendar-days-grid .calendar-day").forEach(el => el.classList.remove("selected"));
-  adminSelectedDateStr = null;
-}
+    // 4. CÁLCULO DE EDAD Y CATEGORÍA
+    function recalculateCategory() {
+        const birthDateVal = inputFechaNacimiento.value.trim();
+        const genderVal = inputGenero.value;
+        const distanceVal = document.getElementById('selected-distance-id').value;
 
+        if (!birthDateVal || birthDateVal.indexOf('/') === -1 || birthDateVal.split('/').length !== 3 || !genderVal || !distanceVal) {
+            inputEdad.value = '';
+            inputCategoria.value = '';
+            return;
+        }
+
+        const age = calculateAge(birthDateVal);
+        if (age <= 0 || isNaN(age)) {
+            inputEdad.value = '';
+            inputCategoria.value = '';
+            return;
+        }
+        inputEdad.value = `${age} años`;
+
+        const categoryName = determineCategory(age, genderVal, distanceVal);
+        inputCategoria.value = categoryName;
+    }
+
+    // Sincronizar los 3 campos de fecha individuales con el campo oculto y manejar foco automático
+    if (birthDayInput && birthMonthInput && birthYearInput && inputFechaNacimiento) {
+        const updateHiddenDate = () => {
+            const day = birthDayInput.value.trim();
+            const month = birthMonthInput.value.trim();
+            const year = birthYearInput.value.trim();
+
+            if (day.length === 2 && month.length === 2 && year.length === 4) {
+                inputFechaNacimiento.value = `${day}/${month}/${year}`;
+            } else {
+                inputFechaNacimiento.value = '';
+            }
+
+            // Disparar recálculo de edad y categoría
+            recalculateCategory();
+            updateFieldHighlight(inputFechaNacimiento);
+        };
+
+        // Escuchar cambios de forma unificada para evitar conflictos de modificación de .value en el hilo de ejecución
+        birthDayInput.addEventListener('input', () => {
+            const clean = birthDayInput.value.replace(/\D/g, '');
+            if (birthDayInput.value !== clean) {
+                birthDayInput.value = clean;
+            }
+            if (clean.length === 2) {
+                birthMonthInput.focus();
+            }
+            updateHiddenDate();
+        });
+
+        birthMonthInput.addEventListener('input', () => {
+            const clean = birthMonthInput.value.replace(/\D/g, '');
+            if (birthMonthInput.value !== clean) {
+                birthMonthInput.value = clean;
+            }
+            if (clean.length === 2) {
+                birthYearInput.focus();
+            }
+            updateHiddenDate();
+        });
+
+        birthYearInput.addEventListener('input', () => {
+            const clean = birthYearInput.value.replace(/\D/g, '');
+            if (birthYearInput.value !== clean) {
+                birthYearInput.value = clean;
+            }
+            updateHiddenDate();
+        });
+
+        // Salto hacia atrás (Backspace)
+        birthMonthInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && birthMonthInput.value.length === 0) {
+                birthDayInput.focus();
+            }
+        });
+
+        birthYearInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && birthYearInput.value.length === 0) {
+                birthMonthInput.focus();
+            }
+        });
+    }
+
+    inputGenero.addEventListener('change', recalculateCategory);
+
+    function calculateAge(birthDateString) {
+        if (!birthDateString) return 0;
+        let formatted = birthDateString;
+        
+        // Convertir DD/MM/YYYY a YYYY-MM-DD para la API de Date
+        if (formatted.indexOf('/') !== -1) {
+            const parts = formatted.split('/');
+            if (parts.length === 3) {
+                formatted = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+        }
+        
+        const today = new Date();
+        const birthDate = new Date(formatted);
+        if (isNaN(birthDate.getTime())) return 0;
+        
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    }
+
+    function determineCategory(age, gender, distance) {
+        if (!config || !config.categories || config.categories.length === 0) {
+            return 'General';
+        }
+        
+        // 1. Filtrar por rango de edad (filtro primario)
+        let candidates = config.categories.filter(cat => age >= cat.minAge && age <= cat.maxAge);
+        if (candidates.length === 0) {
+            return 'Sin categoría asignada (Fuera de rango)';
+        }
+        
+        const genderClean = (gender || '').toLowerCase();
+        const distClean = (distance || '').toLowerCase().replace(/\s+/g, ''); // "5kms" o "15kms"
+        
+        // 2. Filtrar por género (si la categoría discrimina por género)
+        if (genderClean.includes('fem') || genderClean.includes('dam')) {
+            // Eliminar categorías masculinas
+            candidates = candidates.filter(cat => {
+                const name = cat.name.toLowerCase();
+                const id = cat.id.toLowerCase();
+                return !(name.includes('caballeros') || name.includes('masculino') || id.includes('caballeros') || id.includes('masculino') || id.startsWith('m_'));
+            });
+        } else if (genderClean.includes('masc') || genderClean.includes('cab')) {
+            // Eliminar categorías femeninas
+            candidates = candidates.filter(cat => {
+                const name = cat.name.toLowerCase();
+                const id = cat.id.toLowerCase();
+                return !(name.includes('damas') || name.includes('femenino') || id.includes('damas') || id.includes('femenino') || id.startsWith('f_'));
+            });
+        }
+        
+        // Expresiones regulares con límites de palabras (\b) para evitar colisiones de subcadena (evita que "15 kms" contenga "5 km")
+        const matches5k = /\b5\s*k/i;
+        const matches15k = /\b15\s*k/i;
+
+        // 3. Filtrar por distancia (si la distancia ya fue seleccionada)
+        if (distClean) {
+            if (distClean.includes('15')) {
+                // Eliminar categorías de 5K e Infantiles si no aplica
+                candidates = candidates.filter(cat => {
+                    const name = cat.name.toLowerCase();
+                    const id = cat.id.toLowerCase();
+                    return !(matches5k.test(name) || matches5k.test(id) || id.includes('_5k') || id.includes('_5_km') || name.includes('infantil') || id.includes('infantil'));
+                });
+            } else if (distClean.includes('5') && !distClean.includes('15')) {
+                // Para 5K, si existen categorías específicas que mencionan 5K, usar ÚNICAMENTE esas
+                const hasSpecific5k = candidates.some(cat => {
+                    const name = cat.name.toLowerCase();
+                    const id = cat.id.toLowerCase();
+                    return (matches5k.test(name) || matches5k.test(id) || id.includes('_5k') || id.includes('_5_km'));
+                });
+                
+                if (hasSpecific5k) {
+                    candidates = candidates.filter(cat => {
+                        const name = cat.name.toLowerCase();
+                        const id = cat.id.toLowerCase();
+                        return (matches5k.test(name) || matches5k.test(id) || id.includes('_5k') || id.includes('_5_km'));
+                    });
+                }
+            } else if (distClean.includes('infantil')) {
+                // Para infantiles, usar ÚNICAMENTE las categorías que digan infantil
+                candidates = candidates.filter(cat => {
+                    const name = cat.name.toLowerCase();
+                    const id = cat.id.toLowerCase();
+                    return (name.includes('infantil') || id.includes('infantil'));
+                });
+            }
+        } else {
+            // Si no se seleccionó distancia aún, ver si quedan categorías de distintas distancias
+            const has5k = candidates.some(cat => matches5k.test(cat.name.toLowerCase()) || matches5k.test(cat.id.toLowerCase()));
+            const has15k = candidates.some(cat => matches15k.test(cat.name.toLowerCase()) || matches15k.test(cat.id.toLowerCase()));
+            
+            if (has5k && has15k) {
+                return 'Se definirá al seleccionar la distancia';
+            }
+        }
+        
+        // Retornar el primer candidato que coincida
+        if (candidates.length > 0) {
+            return candidates[0].name;
+        }
+        
+        return 'Sin categoría asignada';
+    }
+
+    // 5. NAVEGACIÓN Y WIZARD FORM
+    btnNext.addEventListener('click', () => {
+        if (validateStep(currentStep)) {
+            goToStep(currentStep + 1);
+        }
+    });
+
+    btnPrev.addEventListener('click', () => {
+        goToStep(currentStep - 1);
+    });
+
+    function goToStep(step) {
+        hideError();
+
+        // Guardar valores del paso actual y actualizar el resumen cuando se pasa al Paso 2
+        if (step === 2) {
+            updateSummary();
+        }
+
+        // Ocultar todos los pasos
+        step1.classList.add('hidden');
+        step2.classList.add('hidden');
+
+        // Quitar estado activo de indicadores
+        indicator1.classList.remove('active');
+        indicator2.classList.remove('active');
+        indicator1.classList.remove('completed');
+        indicator2.classList.remove('completed');
+
+        // Activar el paso correspondiente
+        if (step === 1) {
+            step1.classList.remove('hidden');
+            indicator1.classList.add('active');
+            btnPrev.disabled = true;
+            btnNext.classList.remove('hidden');
+            btnSubmit.classList.add('hidden');
+        } else if (step === 2) {
+            step1.classList.add('completed');
+            step2.classList.remove('hidden');
+            indicator2.classList.add('active');
+            indicator1.classList.add('completed');
+            btnPrev.disabled = false;
+            btnNext.classList.add('hidden');
+            btnSubmit.classList.remove('hidden');
+        }
+
+        currentStep = step;
+        const wrapper = document.getElementById('registration-card-wrapper');
+        if (wrapper) {
+            wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    // 6. VALIDACIONES POR PASO
+    function validateStep(step) {
+        if (step === 1) {
+            // Forzar recálculo por seguridad
+            recalculateCategory();
+
+            let firstInvalidEl = null;
+
+            function checkField(element, condition, errorMsg) {
+                if (element.id === 'fecha_nacimiento') {
+                    const inputs = [birthDayInput, birthMonthInput, birthYearInput];
+                    inputs.forEach(input => {
+                        if (input) {
+                            if (condition) {
+                                input.classList.add('invalid-field');
+                                input.classList.remove('completed-field');
+                            } else {
+                                input.classList.remove('invalid-field');
+                                input.classList.add('completed-field');
+                            }
+                        }
+                    });
+                    if (condition && !firstInvalidEl) firstInvalidEl = birthDayInput;
+                    return condition ? errorMsg : null;
+                }
+
+                if (condition) {
+                    element.classList.add('invalid-field');
+                    element.classList.remove('completed-field');
+                    if (!firstInvalidEl) firstInvalidEl = element;
+                    return errorMsg;
+                } else {
+                    element.classList.remove('invalid-field');
+                    element.classList.add('completed-field');
+                    return null;
+                }
+            }
+
+            let error = null;
+            
+            error = error || checkField(inputNombre, !inputNombre.value.trim(), 'El nombre es obligatorio.');
+            error = error || checkField(inputApellido, !inputApellido.value.trim(), 'El apellido es obligatorio.');
+            
+            const selectedDistId = document.getElementById('selected-distance-id').value;
+            const cuilVal = inputCuil.value.trim();
+            let isCuilInvalid = false;
+            let cuilErrorMsg = '';
+
+            if (selectedDistId === 'INFANTILES') {
+                if (cuilVal.length > 0 && cuilVal.length !== 11) {
+                    isCuilInvalid = true;
+                    cuilErrorMsg = 'Si ingresas el CUIL, debe tener exactamente 11 números.';
+                }
+            } else {
+                if (!cuilVal || cuilVal.length !== 11) {
+                    isCuilInvalid = true;
+                    cuilErrorMsg = 'El CUIL es obligatorio y debe tener exactamente 11 números.';
+                }
+            }
+            error = error || checkField(inputCuil, isCuilInvalid, cuilErrorMsg);
+            
+            error = error || checkField(inputFechaNacimiento, !inputFechaNacimiento.value, 'La fecha de nacimiento es obligatoria.');
+            error = error || checkField(inputGenero, !inputGenero.value, 'Debes seleccionar tu género.');
+            
+            const ageVal = parseInt(inputEdad.value);
+            error = error || checkField(inputFechaNacimiento, isNaN(ageVal) || ageVal < 4, isNaN(ageVal) ? 'Fecha de nacimiento inválida.' : 'La edad mínima para participar es de 4 años.');
+
+            error = error || checkField(inputTelefono, !inputTelefono.value.trim(), 'El teléfono es obligatorio.');
+            error = error || checkField(inputTalleRemera, !inputTalleRemera.value, 'Debes seleccionar el talle de remera.');
+
+            // Validar la distancia seleccionada
+            const distance = document.getElementById('selected-distance-id').value;
+            const distancesContainer = document.getElementById('distances-container');
+            error = error || checkField(distancesContainer, !distance, 'Debes seleccionar una distancia para correr.');
+            
+            // Validar que la categoría asignada sea válida
+            const catVal = inputCategoria.value;
+            error = error || checkField(inputCategoria, !catVal || catVal === 'Sin categoría asignada' || catVal === 'Se definirá al seleccionar la distancia' || catVal.includes('Fuera de rango'), 'No se encontró una categoría válida para tu edad, género y distancia seleccionada.');
+
+            if (error) {
+                if (firstInvalidEl) {
+                    firstInvalidEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstInvalidEl.focus();
+                }
+                return showError(error);
+            }
+            
+            return true;
+        }
+
+        return true;
+    }
+
+    function updateSummary() {
+        const cost = parseFloat(document.getElementById('selected-distance-price').value) || 0;
+        summaryCorredor.textContent = `${inputNombre.value} ${inputApellido.value}`;
+        summaryDistancia.textContent = document.getElementById('selected-distance-id').value;
+        summaryCategoria.textContent = inputCategoria.value || 'General';
+        summaryMonto.textContent = `$${cost.toLocaleString('es-AR')}`;
+    }
+
+    // 7. CARGA DE ARCHIVO Y PREVIEW
+    // Drag & Drop
+    ['dragenter', 'dragover'].forEach(eventName => {
+        fileDropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            fileDropzone.classList.add('dragover');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        fileDropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            fileDropzone.classList.remove('dragover');
+        }, false);
+    });
+
+    fileDropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length > 0) {
+            handleFile(files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFile(e.target.files[0]);
+        }
+    });
+
+    // Triggers input click on box click
+    fileDropzone.addEventListener('click', (e) => {
+        if (e.target !== fileInput) {
+            fileInput.click();
+        }
+    });
+
+    async function handleFile(file) {
+        hideError();
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+
+        if (!allowedTypes.includes(file.type)) {
+            showError('Formato no permitido. Solo se aceptan imágenes (JPG, PNG) o PDF.');
+            resetFileInput();
+            return;
+        }
+
+        if (file.size > maxSize) {
+            showError('El archivo es demasiado grande. El límite es 5MB.');
+            resetFileInput();
+            return;
+        }
+
+        uploadedFileName = file.name;
+        uploadedFileType = file.type;
+
+        // Visual change
+        previewFilename.textContent = file.name;
+        previewFilesize.textContent = formatBytes(file.size);
+        
+        // Icon type
+        if (file.type === 'application/pdf') {
+            previewIcon.className = 'fa-solid fa-file-pdf file-preview-icon';
+            previewIcon.style.color = '#ff5252';
+        } else {
+            previewIcon.className = 'fa-solid fa-file-image file-preview-icon';
+            previewIcon.style.color = '#00f2fe';
+        }
+
+        // Base64 conversion
+        try {
+            uploadedFileBase64 = await toBase64(file);
+            fileDropzone.classList.add('hidden');
+            filePreviewContainer.classList.remove('hidden');
+            validateSubmitButton();
+        } catch (err) {
+            console.error('Error convirtiendo archivo:', err);
+            showError('Ocurrió un error al procesar el archivo. Reinténtalo.');
+            resetFileInput();
+        }
+    }
+
+    btnRemoveFile.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resetFileInput();
+        hideError();
+    });
+
+    function resetFileInput() {
+        fileInput.value = '';
+        uploadedFileBase64 = null;
+        uploadedFileName = null;
+        uploadedFileType = null;
+        fileDropzone.classList.remove('hidden');
+        filePreviewContainer.classList.add('hidden');
+        validateSubmitButton();
+    }
+
+    // Helper functions
+    function toBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => {
+                // Return only base64 data string without schema prefix
+                const base64String = reader.result.split(',')[1];
+                resolve(base64String);
+            };
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function validateSubmitButton() {
+        if (uploadedFileBase64) {
+            btnSubmit.disabled = false;
+        } else {
+            btnSubmit.disabled = true;
+        }
+    }
+
+    // 8. ENVÍO DE DATOS
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideError();
+
+        if (!uploadedFileBase64) {
+            return showError('El comprobante de pago es un archivo obligatorio.');
+        }
+
+        // Show loading screen
+        document.querySelector('.card-wrapper').style.minHeight = '300px';
+        form.classList.add('hidden');
+        loadingScreen.classList.remove('hidden');
+
+        // Formatear fecha de nacimiento a DD/MM/YYYY
+        let formattedBirthdate = inputFechaNacimiento.value;
+        if (formattedBirthdate === '__/__/____') {
+            formattedBirthdate = '';
+        } else if (formattedBirthdate) {
+            const dateParts = formattedBirthdate.split('-');
+            if (dateParts.length === 3) {
+                formattedBirthdate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+            }
+        }
+
+        // Formatear género a Damas/Caballeros
+        const formattedGender = inputGenero.value === 'Femenino' ? 'Damas' : (inputGenero.value === 'Masculino' ? 'Caballeros' : inputGenero.value);
+
+        // Compile payload
+        const formData = {
+            nombre: inputNombre.value.trim(),
+            apellido: inputApellido.value.trim(),
+            cuil: inputCuil.value.trim(),
+            fecha_nacimiento: formattedBirthdate,
+            edad: inputEdad.value.replace(' años', ''),
+            categoria: inputCategoria.value,
+            telefono: inputTelefono.value.trim(),
+            genero: formattedGender,
+            talle_remera: inputTalleRemera.value,
+            team_origen: document.getElementById('team_origen').value.trim(),
+            distancia: document.getElementById('selected-distance-id').value,
+            costo: document.getElementById('selected-distance-price').value,
+            comprobante_base64: uploadedFileBase64,
+            comprobante_nombre: uploadedFileName,
+            comprobante_tipo: uploadedFileType,
+            timestamp: new Date().toISOString()
+        };
+
+        // Guardar datos en localStorage para recordar en este dispositivo
+        try {
+            localStorage.setItem('runner_pref_nombre', inputNombre.value.trim());
+            localStorage.setItem('runner_pref_apellido', inputApellido.value.trim());
+            localStorage.setItem('runner_pref_cuil', inputCuil.value.trim());
+            localStorage.setItem('runner_pref_fecha_nacimiento', inputFechaNacimiento.value);
+            localStorage.setItem('runner_pref_genero', inputGenero.value);
+            localStorage.setItem('runner_pref_telefono', inputTelefono.value.trim());
+            localStorage.setItem('runner_pref_talle_remera', inputTalleRemera.value);
+            const teamInput = document.getElementById('team_origen');
+            if (teamInput) {
+                localStorage.setItem('runner_pref_team_origen', teamInput.value.trim());
+            }
+        } catch (storageErr) {
+            console.warn('No se pudo guardar en localStorage:', storageErr);
+        }
+
+        // CHECK IF IN MOCK/DEMO MODE
+        if (GOOGLE_SCRIPT_URL === 'TU_SCRIPT_URL_AQUI' || GOOGLE_SCRIPT_URL.trim() === '') {
+            // Simulamos retraso de envío de red de 2 segundos en modo Demo
+            console.log('--- MODO DEMOSTRACIÓN ---');
+            console.log('Datos enviados:', formData);
+            
+            setTimeout(() => {
+                loadingScreen.classList.add('hidden');
+                successScreen.classList.remove('hidden');
+            }, 2500);
+            return;
+        }
+
+        // REAL HTTP POST SEND
+        try {
+            await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Evita bloqueos de CORS debido a redirecciones de Google
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8',
+                },
+                body: JSON.stringify(formData)
+            });
+
+            // En modo 'no-cors' la respuesta es opaca, por lo que asumimos éxito al no lanzar error de red
+            loadingScreen.classList.add('hidden');
+            successScreen.classList.remove('hidden');
+
+        } catch (error) {
+            console.error('Error al enviar registro:', error);
+            // Revert screen state
+            loadingScreen.classList.add('hidden');
+            form.classList.remove('hidden');
+            showError(`Error al procesar el envío: ${error.message || 'Problema de conexión'}. Revisa tu conexión o vuelve a intentarlo.`);
+        }
+    });
+
+    // 9. ERROR HANDLING
+    function showError(message) {
+        errorText.textContent = message;
+        errorBar.classList.remove('hidden');
+        
+        // Scroll to error
+        errorBar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return false;
+    }
+
+    function hideError() {
+        errorBar.classList.add('hidden');
+    }
+
+    // 10. RESALTADO DINÁMICO DE CAMPOS COMPLETADOS
+    const fieldsToTrack = [
+        inputNombre,
+        inputApellido,
+        inputCuil,
+        inputFechaNacimiento,
+        inputGenero,
+        inputTelefono,
+        inputTalleRemera
+    ];
+
+    function updateFieldHighlight(element) {
+        if (!element) return;
+        
+        let isCompleted = false;
+        
+        if (element.id === 'fecha_nacimiento') {
+            isCompleted = element.value.trim() !== '';
+            const inputs = [birthDayInput, birthMonthInput, birthYearInput];
+            inputs.forEach(input => {
+                if (input) {
+                    if (isCompleted) {
+                        input.classList.add('completed-field');
+                        input.classList.remove('invalid-field');
+                    } else {
+                        input.classList.remove('completed-field');
+                    }
+                }
+            });
+            return;
+        }
+        
+        if (element.tagName === 'SELECT') {
+            isCompleted = element.value !== '';
+        } else if (element.id === 'cuil') {
+            isCompleted = element.value.trim().length === 11;
+        } else if (element.type === 'date') {
+            isCompleted = element.value !== '';
+        } else {
+            isCompleted = element.value.trim() !== '';
+        }
+
+        if (isCompleted) {
+            element.classList.add('completed-field');
+            element.classList.remove('invalid-field');
+        } else {
+            element.classList.remove('completed-field');
+        }
+    }
+
+    fieldsToTrack.forEach(field => {
+        if (!field) return;
+        
+        field.addEventListener('input', () => {
+            updateFieldHighlight(field);
+            hideError();
+        });
+        field.addEventListener('change', () => {
+            updateFieldHighlight(field);
+            hideError();
+        });
+        field.addEventListener('blur', () => {
+            updateFieldHighlight(field);
+        });
+        
+        // Ejecutar inicialmente por si hay autocompletado
+        updateFieldHighlight(field);
+    });
+
+    // Autodetectar género a partir del primer nombre en español/argentino
+    if (inputNombre && inputGenero) {
+        inputNombre.addEventListener('input', () => {
+            const val = inputNombre.value.trim();
+            if (val.length >= 3) {
+                const guessed = guessGender(val);
+                if (guessed) {
+                    inputGenero.value = guessed;
+                    updateFieldHighlight(inputGenero);
+                }
+            }
+        });
+    }
+
+    function guessGender(fullName) {
+        if (!fullName) return null;
+        
+        let firstName = fullName.trim().split(/\s+/)[0];
+        if (!firstName) return null;
+        
+        firstName = firstName.toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, ""); // Quitar acentos
+            
+        const femaleNames = new Set([
+            "maria", "ana", "belen", "lujan", "carmen", "pilar", "sol", "luz", "flor", 
+            "ruth", "ester", "abril", "ines", "lucia", "sofia", "rocio", "dolores", 
+            "mercedes", "soledad", "beatriz", "raquel", "isabel", "noemi", "miriam", 
+            "abigail", "elizabeth", "yamila", "camila", "valeria", "micaela", "romina",
+            "florencia", "carolina", "antonela", "antonella", "giuliana", "daiana", 
+            "milagros", "lourdes", "estela", "cecilia", "silvia", "monica", "patricia",
+            "sandra", "marta", "martha", "claudia", "gabriela", "daniela", "andrea",
+            "susana", "liliana", "graciela", "teresa", "alicia"
+        ]);
+        
+        const maleNames = new Set([
+            "luca", "lucas", "bautista", "sasha", "gianluca", "tomas", "matias", 
+            "nicolas", "josue", "rene", "jose", "angel", "ariel"
+        ]);
+
+        if (maleNames.has(firstName)) {
+            return 'Masculino';
+        }
+        
+        if (femaleNames.has(firstName)) {
+            return 'Femenino';
+        }
+        
+        if (firstName.endsWith('a')) {
+            return 'Femenino';
+        }
+        
+        if (firstName.endsWith('o') || firstName.endsWith('os')) {
+            return 'Masculino';
+        }
+        
+        if (
+            firstName.endsWith('el') || 
+            firstName.endsWith('or') || 
+            firstName.endsWith('an') || 
+            firstName.endsWith('on') || 
+            firstName.endsWith('en') || 
+            firstName.endsWith('as') || 
+            firstName.endsWith('is') || 
+            firstName.endsWith('us') || 
+            firstName.endsWith('ur') || 
+            firstName.endsWith('id') || 
+            (firstName.endsWith('es') && !['mercedes', 'dolores', 'ines'].includes(firstName))
+        ) {
+            return 'Masculino';
+        }
+        
+        return null;
+    }
+
+    // Escuchar selección de distancia
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.selector-card')) {
+            const distancesContainer = document.getElementById('distances-container');
+            distancesContainer.classList.remove('invalid-field');
+            distancesContainer.classList.add('completed-field');
+        }
+    });
+
+    async function loadGpxMap() {
+        const mapContainer = document.getElementById('map-track');
+        if (!mapContainer) return;
+
+        // 1. Obtener la distancia seleccionada
+        const selectedDistanceId = document.getElementById('selected-distance-id').value;
+        let gpxLink = config.gpxLink; // Usar el global por defecto
+
+        // 2. Si hay distancia seleccionada, buscar si tiene un GPX específico
+        if (selectedDistanceId && config.distances) {
+            const matchedDist = config.distances.find(d => d.id === selectedDistanceId);
+            if (matchedDist && matchedDist.gpxLink && matchedDist.gpxLink.trim() !== '' && matchedDist.gpxLink !== '#') {
+                gpxLink = matchedDist.gpxLink;
+            }
+        }
+
+        // 3. Si no hay GPX (ni global ni por distancia), ocultamos el mapa
+        if (!gpxLink || gpxLink === '#' || gpxLink.trim() === '') {
+            document.getElementById('interactive-map-card').classList.add('hidden');
+            return;
+        }
+
+        document.getElementById('interactive-map-card').classList.remove('hidden');
+
+        try {
+            // Cargar el archivo GPX
+            const response = await fetch(gpxLink);
+            if (!response.ok) throw new Error('No se pudo cargar el archivo GPX.');
+            const gpxText = await response.text();
+
+            // Parsear XML de GPX
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(gpxText, 'text/xml');
+            const points = [];
+            const trackPoints = xmlDoc.getElementsByTagName('trkpt');
+
+            for (let i = 0; i < trackPoints.length; i++) {
+                const lat = parseFloat(trackPoints[i].getAttribute('lat'));
+                const lon = parseFloat(trackPoints[i].getAttribute('lon'));
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    points.push([lat, lon]);
+                }
+            }
+
+            if (points.length === 0) {
+                console.warn('El archivo GPX no contiene puntos de track válidos.');
+                document.getElementById('interactive-map-card').classList.add('hidden');
+                return;
+            }
+
+            // Inicializar el mapa si no existe
+            if (!trackMap) {
+                const streetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© Colaboradores de OpenStreetMap'
+                });
+
+                const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                });
+
+                trackMap = L.map('map-track', {
+                    scrollWheelZoom: false,
+                    layers: [streetMap]
+                });
+
+                const baseMaps = {
+                    "Mapa de Calles": streetMap,
+                    "Vista Satélite": satelliteMap
+                };
+
+                L.control.layers(baseMaps).addTo(trackMap);
+
+                // Alternar zoom con la rueda al hacer clic en el mapa
+                trackMap.on('click', () => {
+                    if (trackMap.scrollWheelZoom.enabled()) {
+                        trackMap.scrollWheelZoom.disable();
+                    } else {
+                        trackMap.scrollWheelZoom.enable();
+                    }
+                });
+            }
+
+            // Remover dibujo previo si hay
+            if (trackPolyline) {
+                trackMap.removeLayer(trackPolyline);
+            }
+
+            // Dibujar la línea del track
+            trackPolyline = L.polyline(points, {
+                color: '#ff6b35', // Naranja
+                weight: 5,
+                opacity: 0.9
+            }).addTo(trackMap);
+
+            // Ajustar la vista de cámara al circuito completo
+            trackMap.fitBounds(trackPolyline.getBounds());
+
+            // Colocar marcador en la salida
+            L.marker(points[0]).addTo(trackMap)
+                .bindPopup(`<b>Largada / Llegada - ${selectedDistanceId || ''}</b>`)
+                .openPopup();
+
+        } catch (error) {
+            console.error('Error al inicializar el mapa GPX:', error);
+            mapContainer.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 2rem; text-align: center; color: var(--text-secondary);">
+                    <i class="fa-solid fa-circle-exclamation" style="font-size: 2.5rem; color: var(--accent-orange); margin-bottom: 1rem;"></i>
+                    <p style="font-weight: 600;">No se pudo cargar el mapa interactivo directamente.</p>
+                    <p style="font-size: 0.85rem; margin-top: 0.5rem; color: var(--text-muted);">
+                        Esto ocurre por seguridad del navegador al abrir archivos locales directamente. Para verlo interactivo, ingresa desde: <a href="http://localhost:3000/index.html" style="color: var(--accent-cyan); text-decoration: underline;">http://localhost:3000</a> o descarga la ruta usando el botón de arriba.
+                    </p>
+                </div>
+            `;
+        }
+    }
+
+    // Evento para mostrar e iniciar la inscripción con scroll suave
+    const btnGoToRegistration = document.getElementById('btn-go-to-registration');
+    const registrationCardWrapper = document.getElementById('registration-card-wrapper');
+    if (btnGoToRegistration && registrationCardWrapper) {
+        btnGoToRegistration.addEventListener('click', () => {
+            registrationCardWrapper.classList.remove('hidden');
+            registrationCardWrapper.scrollIntoView({ behavior: 'smooth' });
+            
+            // Enfocar el primer campo del formulario (Nombre)
+            setTimeout(() => {
+                const nombreInput = document.getElementById('nombre');
+                if (nombreInput) nombreInput.focus();
+            }, 550);
+        });
+    }
+
+    // Eventos de barra de navegación superior (Inscripciones y Clasificaciones)
+    const navBtnInscripciones = document.getElementById('nav-btn-inscripciones');
+    const navBtnClasificaciones = document.getElementById('nav-btn-clasificaciones');
+
+    if (navBtnInscripciones) {
+        navBtnInscripciones.addEventListener('click', () => {
+            console.log('Botón Inscripciones clickeado. Desplazando a #dashboard-card...');
+            const targetElement = document.getElementById('dashboard-card');
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            
+            // Activar botón visualmente
+            navBtnInscripciones.classList.add('active');
+            if (navBtnClasificaciones) navBtnClasificaciones.classList.remove('active');
+        });
+    }
+
+    if (navBtnClasificaciones) {
+        navBtnClasificaciones.addEventListener('click', () => {
+            if (config && config.clasificacionesLink && config.clasificacionesLink.trim() !== '') {
+                window.open(config.clasificacionesLink, '_blank');
+            } else {
+                alert('Las clasificaciones oficiales de la carrera estarán disponibles aquí una vez finalizado el evento. ¡Éxitos a todos los competidores!');
+            }
+        });
+    }
+
+    // Cargar datos guardados previamente del usuario en este dispositivo (localStorage)
+    try {
+        if (localStorage.getItem('runner_pref_nombre')) {
+            inputNombre.value = localStorage.getItem('runner_pref_nombre') || '';
+            inputApellido.value = localStorage.getItem('runner_pref_apellido') || '';
+            inputCuil.value = localStorage.getItem('runner_pref_cuil') || '';
+            let savedDate = localStorage.getItem('runner_pref_fecha_nacimiento') || '';
+            if (savedDate && savedDate.indexOf('-') !== -1) {
+                const parts = savedDate.split('-');
+                if (parts.length === 3) {
+                    savedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                }
+            }
+            
+            // Rellenar campos de fecha individuales y sincronizar
+            if (savedDate && savedDate.indexOf('/') !== -1) {
+                const dateParts = savedDate.split('/');
+                if (dateParts.length === 3) {
+                    if (birthDayInput) birthDayInput.value = dateParts[0];
+                    if (birthMonthInput) birthMonthInput.value = dateParts[1];
+                    if (birthYearInput) birthYearInput.value = dateParts[2];
+                    inputFechaNacimiento.value = savedDate;
+                }
+            } else {
+                inputFechaNacimiento.value = '';
+                if (birthDayInput) birthDayInput.value = '';
+                if (birthMonthInput) birthMonthInput.value = '';
+                if (birthYearInput) birthYearInput.value = '';
+            }
+            
+            inputGenero.value = localStorage.getItem('runner_pref_genero') || '';
+            inputTelefono.value = localStorage.getItem('runner_pref_telefono') || '';
+            inputTalleRemera.value = localStorage.getItem('runner_pref_talle_remera') || '';
+            const teamInput = document.getElementById('team_origen');
+            if (teamInput) {
+                teamInput.value = localStorage.getItem('runner_pref_team_origen') || '';
+            }
+            
+            // Si cargamos fecha de nacimiento, forzar el cálculo de la edad y la categoría
+            if (inputFechaNacimiento.value) {
+                recalculateCategory();
+            }
+
+            // Actualizar el resaltado visual de los campos precargados
+            fieldsToTrack.forEach(field => {
+                if (field) updateFieldHighlight(field);
+            });
+            const teamInputAfter = document.getElementById('team_origen');
+            if (teamInputAfter) updateFieldHighlight(teamInputAfter);
+        }
+    } catch (e) {
+        console.warn('No se pudo precargar la información de localStorage:', e);
+    }
+
+    // INIT
+    loadConfig();
+});
