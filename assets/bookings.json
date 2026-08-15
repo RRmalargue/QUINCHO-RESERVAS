@@ -1,0 +1,633 @@
+[
+  {
+    "date": "2026-08-15",
+    "slot": "night",
+    "name": "Pedro",
+    "phone": "5492611234567",
+    "totalPrice": 50000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-08-16",
+    "slot": "day",
+    "name": "Juan",
+    "phone": "5492617654321",
+    "totalPrice": 40000,
+    "deposit": 40000
+  },
+  {
+    "date": "2026-08-22",
+    "slot": "night",
+    "name": "María",
+    "totalPrice": 60000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-08-23",
+    "slot": "day",
+    "name": "Carlos",
+    "phone": "5492615555555",
+    "totalPrice": 55000,
+    "deposit": 15000
+  },
+  {
+    "date": "2026-01-20",
+    "slot": "day",
+    "name": "[GCal] Marita",
+    "phone": "GCal",
+    "totalPrice": 0,
+    "deposit": 0
+  },
+  {
+    "date": "2026-02-13",
+    "slot": "night",
+    "name": "[GCal] Nancy Aguilera de dia",
+    "phone": "GCal",
+    "totalPrice": 190000,
+    "deposit": 30000
+  },
+  {
+    "date": "2026-01-30",
+    "slot": "night",
+    "name": "[GCal] Edu martinez",
+    "phone": "GCal",
+    "totalPrice": 170000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-01-14",
+    "slot": "night",
+    "name": "[GCal] Bruno",
+    "phone": "GCal",
+    "totalPrice": 16,
+    "deposit": 4
+  },
+  {
+    "date": "2026-01-23",
+    "slot": "day",
+    "name": "[GCal] Nelson letelier de dia",
+    "phone": "GCal",
+    "totalPrice": 100000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-01-30",
+    "slot": "day",
+    "name": "[GCal] Evelyn sepulveda de",
+    "phone": "GCal",
+    "totalPrice": 180000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-12-24",
+    "slot": "night",
+    "name": "[GCal] Adrian vazquez de dia y de noche",
+    "phone": "GCal",
+    "totalPrice": 300000,
+    "deposit": 3
+  },
+  {
+    "date": "2026-08-08",
+    "slot": "night",
+    "name": "[GCal] Yazmin caceres",
+    "phone": "GCal",
+    "totalPrice": 95000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-02-21",
+    "slot": "night",
+    "name": "[GCal] No lo ocupará.....Tamara ríos de noche",
+    "phone": "GCal",
+    "totalPrice": 190000,
+    "deposit": 30000
+  },
+  {
+    "date": "2026-05-02",
+    "slot": "night",
+    "name": "[GCal] Nicol de dia",
+    "phone": "GCal",
+    "totalPrice": 20000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-02-11",
+    "slot": "night",
+    "name": "[GCal] Sol gallardo de dia",
+    "phone": "GCal",
+    "totalPrice": 180000,
+    "deposit": 30000
+  },
+  {
+    "date": "2026-04-05",
+    "slot": "night",
+    "name": "[GCal] Anyi muñoz 110.000",
+    "phone": "GCal",
+    "totalPrice": 110000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-01-02",
+    "slot": "day",
+    "name": "[GCal] Lorena perez 190",
+    "phone": "GCal",
+    "totalPrice": 190000,
+    "deposit": 30000
+  },
+  {
+    "date": "2026-03-30",
+    "slot": "night",
+    "name": "[GCal] Juan Carlos Perez",
+    "phone": "GCal",
+    "totalPrice": 110000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-01-31",
+    "slot": "night",
+    "name": "[GCal] Mayra urrutia",
+    "phone": "GCal",
+    "totalPrice": 220000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-04-13",
+    "slot": "night",
+    "name": "[GCal] Jaquelina Reveco 120",
+    "phone": "GCal",
+    "totalPrice": 120000,
+    "deposit": 30000
+  },
+  {
+    "date": "2026-02-05",
+    "slot": "day",
+    "name": "[GCal] Sol perez",
+    "phone": "GCal",
+    "totalPrice": 200000,
+    "deposit": 100000
+  },
+  {
+    "date": "2026-07-18",
+    "slot": "night",
+    "name": "[GCal] Matias Becerra",
+    "phone": "GCal",
+    "totalPrice": 110000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-01-24",
+    "slot": "night",
+    "name": "[GCal] Andrea Vazquez de",
+    "phone": "GCal",
+    "totalPrice": 200000,
+    "deposit": 50000
+  },
+  {
+    "date": "2026-06-07",
+    "slot": "night",
+    "name": "[GCal] Nabila de noche",
+    "phone": "GCal",
+    "totalPrice": 100000,
+    "deposit": 10000
+  },
+  {
+    "date": "2026-08-21",
+    "slot": "night",
+    "name": "[GCal] Rosa pacheco de noche a partir de 18 hs",
+    "phone": "GCal",
+    "totalPrice": 18,
+    "deposit": 0
+  },
+  {
+    "date": "2026-04-18",
+    "slot": "night",
+    "name": "[GCal] Lucía carmona de",
+    "phone": "GCal",
+    "totalPrice": 120000,
+    "deposit": 10
+  },
+  {
+    "date": "2026-01-26",
+    "slot": "day",
+    "name": "[GCal] Valeria Moya 210",
+    "phone": "GCal",
+    "totalPrice": 210000,
+    "deposit": 50000
+  },
+  {
+    "date": "2026-05-09",
+    "slot": "night",
+    "name": "[GCal] Quintetos 120",
+    "phone": "GCal",
+    "totalPrice": 120000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-05-17",
+    "slot": "night",
+    "name": "[GCal] Solange Aguilera 110.000",
+    "phone": "GCal",
+    "totalPrice": 110000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-01-03",
+    "slot": "night",
+    "name": "[GCal] Guadalupe salinas",
+    "phone": "GCal",
+    "totalPrice": 230000,
+    "deposit": 100000
+  },
+  {
+    "date": "2026-02-28",
+    "slot": "night",
+    "name": "[GCal] Barby",
+    "phone": "GCal",
+    "totalPrice": 160000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-03-15",
+    "slot": "night",
+    "name": "[GCal] Maria Victoria viola",
+    "phone": "GCal",
+    "totalPrice": 210000,
+    "deposit": 50000
+  },
+  {
+    "date": "2026-05-24",
+    "slot": "night",
+    "name": "[GCal] Gonza Diaz",
+    "phone": "GCal",
+    "totalPrice": 90000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-07-04",
+    "slot": "day",
+    "name": "[GCal] Nicol",
+    "phone": "GCal",
+    "totalPrice": 120000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-04-12",
+    "slot": "night",
+    "name": "[GCal] Nicol videla de dia 10 am a 22 hs",
+    "phone": "GCal",
+    "totalPrice": 130000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-03-06",
+    "slot": "day",
+    "name": "[GCal] Vanesa Martinez",
+    "phone": "GCal",
+    "totalPrice": 180000,
+    "deposit": 30000
+  },
+  {
+    "date": "2026-01-11",
+    "slot": "day",
+    "name": "[GCal] Cumple de Luisana",
+    "phone": "GCal",
+    "totalPrice": 0,
+    "deposit": 0
+  },
+  {
+    "date": "2026-01-11",
+    "slot": "night",
+    "name": "[GCal] Cumple de Luisana",
+    "phone": "GCal",
+    "totalPrice": 0,
+    "deposit": 0
+  },
+  {
+    "date": "2026-01-16",
+    "slot": "night",
+    "name": "[GCal] Soledad pallerez de",
+    "phone": "GCal",
+    "totalPrice": 180000,
+    "deposit": 30000
+  },
+  {
+    "date": "2026-01-25",
+    "slot": "day",
+    "name": "[GCal] Edgar martin garcia de día",
+    "phone": "GCal",
+    "totalPrice": 420000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-07-11",
+    "slot": "day",
+    "name": "[GCal] Sole de noche",
+    "phone": "GCal",
+    "totalPrice": 80000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-03-09",
+    "slot": "night",
+    "name": "[GCal] Valeria moya de dia",
+    "phone": "GCal",
+    "totalPrice": 210000,
+    "deposit": 50000
+  },
+  {
+    "date": "2026-04-25",
+    "slot": "day",
+    "name": "[GCal] Carmen de dia hasta 17 hs",
+    "phone": "GCal",
+    "totalPrice": 90000,
+    "deposit": 17
+  },
+  {
+    "date": "2026-12-05",
+    "slot": "night",
+    "name": "[GCal] Yani",
+    "phone": "GCal",
+    "totalPrice": 180000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-01-06",
+    "slot": "night",
+    "name": "[GCal] Erica de 10 a 19",
+    "phone": "GCal",
+    "totalPrice": 19,
+    "deposit": 10
+  },
+  {
+    "date": "2026-01-25",
+    "slot": "night",
+    "name": "[GCal] Edgar Martin garcia de noche",
+    "phone": "5492604820494",
+    "totalPrice": 200000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-06-06",
+    "slot": "night",
+    "name": "[GCal] Gonzalo ubilla",
+    "phone": "GCal",
+    "totalPrice": 90000,
+    "deposit": 10000
+  },
+  {
+    "date": "2026-08-22",
+    "slot": "day",
+    "name": "[GCal] Pía Becerra dex13 a 20 hs",
+    "phone": "GCal",
+    "totalPrice": 20000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-01-29",
+    "slot": "night",
+    "name": "[GCal] Natalia gallardo",
+    "phone": "GCal",
+    "totalPrice": 160000,
+    "deposit": 40000
+  },
+  {
+    "date": "2026-12-26",
+    "slot": "night",
+    "name": "[GCal] Soledad gimenez",
+    "phone": "542604812367",
+    "totalPrice": 250000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-09-06",
+    "slot": "night",
+    "name": "[GCal] Lino de noche",
+    "phone": "GCal",
+    "totalPrice": 0,
+    "deposit": 0
+  },
+  {
+    "date": "2026-02-11",
+    "slot": "day",
+    "name": "[GCal] Viví alvares 180",
+    "phone": "GCal",
+    "totalPrice": 180000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-12-26",
+    "slot": "day",
+    "name": "[GCal] Macki oviedo de dia",
+    "phone": "GCal",
+    "totalPrice": 0,
+    "deposit": 0
+  },
+  {
+    "date": "2026-03-14",
+    "slot": "night",
+    "name": "[GCal] Diego Bello",
+    "phone": "GCal",
+    "totalPrice": 200000,
+    "deposit": 50000
+  },
+  {
+    "date": "2026-02-01",
+    "slot": "day",
+    "name": "[GCal] Pariente Carrasco 180",
+    "phone": "GCal",
+    "totalPrice": 180000,
+    "deposit": 30000
+  },
+  {
+    "date": "2026-02-07",
+    "slot": "night",
+    "name": "[GCal] Perita de dia",
+    "phone": "GCal",
+    "totalPrice": 160000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-03-07",
+    "slot": "night",
+    "name": "[GCal] Celso de dia",
+    "phone": "GCal",
+    "totalPrice": 250000,
+    "deposit": 200000
+  },
+  {
+    "date": "2026-02-14",
+    "slot": "day",
+    "name": "[GCal] Gabriela Mamani",
+    "phone": "GCal",
+    "totalPrice": 220000,
+    "deposit": 30000
+  },
+  {
+    "date": "2026-09-12",
+    "slot": "night",
+    "name": "[GCal] ESTEFANIA",
+    "phone": "5492604274765",
+    "totalPrice": 150000,
+    "deposit": 50000
+  },
+  {
+    "date": "2026-12-25",
+    "slot": "night",
+    "name": "[GCal] Adrian vazquez de dia",
+    "phone": "GCal",
+    "totalPrice": 0,
+    "deposit": 0
+  },
+  {
+    "date": "2026-02-18",
+    "slot": "night",
+    "name": "[GCal] Ale de derimais",
+    "phone": "GCal",
+    "totalPrice": 140000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-11-22",
+    "slot": "night",
+    "name": "[GCal] Fatima Moreno De",
+    "phone": "GCal",
+    "totalPrice": 210000,
+    "deposit": 30000
+  },
+  {
+    "date": "2026-11-29",
+    "slot": "day",
+    "name": "[GCal] Naty de dia",
+    "phone": "GCal",
+    "totalPrice": 220000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-03-21",
+    "slot": "night",
+    "name": "[GCal] Brisa vera",
+    "phone": "GCal",
+    "totalPrice": 180000,
+    "deposit": 50000
+  },
+  {
+    "date": "2026-02-16",
+    "slot": "day",
+    "name": "[GCal] Belen 190",
+    "phone": "GCal",
+    "totalPrice": 190000,
+    "deposit": 30000
+  },
+  {
+    "date": "2026-04-25",
+    "slot": "night",
+    "name": "[GCal] Paola toledano",
+    "phone": "GCal",
+    "totalPrice": 140000,
+    "deposit": 30000
+  },
+  {
+    "date": "2026-05-16",
+    "slot": "day",
+    "name": "[GCal] July",
+    "phone": "GCal",
+    "totalPrice": 0,
+    "deposit": 0
+  },
+  {
+    "date": "2026-04-06",
+    "slot": "night",
+    "name": "[GCal] Ponce",
+    "phone": "GCal",
+    "totalPrice": 130000,
+    "deposit": 0
+  },
+  {
+    "date": "2026-11-28",
+    "slot": "day",
+    "name": "[GCal] Natali arteaga  de noche",
+    "phone": "5492604307257",
+    "totalPrice": 220000,
+    "deposit": 40000
+  },
+  {
+    "date": "2026-01-18",
+    "slot": "night",
+    "name": "[GCal] Soledad gimenez",
+    "phone": "GCal",
+    "totalPrice": 150000,
+    "deposit": 60000
+  },
+  {
+    "date": "2026-02-19",
+    "slot": "night",
+    "name": "[GCal] Micaela muñoz",
+    "phone": "GCal",
+    "totalPrice": 180000,
+    "deposit": 30000
+  },
+  {
+    "date": "2026-12-31",
+    "slot": "night",
+    "name": "[GCal] Johana de jueves",
+    "phone": "GCal",
+    "totalPrice": 1250000,
+    "deposit": 250000
+  },
+  {
+    "date": "2026-11-07",
+    "slot": "night",
+    "name": "[GCal] Carla Sanchez de dia",
+    "phone": "GCal",
+    "totalPrice": 0,
+    "deposit": 0
+  },
+  {
+    "date": "2026-09-26",
+    "slot": "night",
+    "name": "[GCal] Marianela Ison",
+    "phone": "GCal",
+    "totalPrice": 150000,
+    "deposit": 50000
+  },
+  {
+    "date": "2026-12-06",
+    "slot": "day",
+    "name": "[GCal] Ludmila pacheco",
+    "phone": "5492604238087",
+    "totalPrice": 250000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-02-02",
+    "slot": "day",
+    "name": "[GCal] Maxi",
+    "phone": "GCal",
+    "totalPrice": 160000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-06-05",
+    "slot": "night",
+    "name": "[GCal] Rosa pacheco",
+    "phone": "5492604311135",
+    "totalPrice": 100000,
+    "deposit": 19
+  },
+  {
+    "date": "2026-03-22",
+    "slot": "day",
+    "name": "[GCal] Ana Paracecoli 130",
+    "phone": "GCal",
+    "totalPrice": 130000,
+    "deposit": 20000
+  },
+  {
+    "date": "2026-01-22",
+    "slot": "day",
+    "name": "[GCal] Valeria",
+    "phone": "GCal",
+    "totalPrice": 0,
+    "deposit": 0
+  }
+]
