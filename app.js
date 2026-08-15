@@ -105,9 +105,12 @@ function normalizeSupabaseUrl(url) {
   return cleanUrl;
 }
 
-// Configuración de Supabase (se carga de localStorage si existe)
-let supabaseUrl = normalizeSupabaseUrl(localStorage.getItem("sb_url") || "");
-let supabaseKey = (localStorage.getItem("sb_key") || "").trim();
+// Configuración de Supabase (valores fijos por defecto para que conecte automáticamente en todos los dispositivos)
+const DEFAULT_SB_URL = "https://xmiuelsdeojlhhmjgxwt.supabase.co";
+const DEFAULT_SB_KEY = "sb_publishable_d-jgifmPM7jWxOEWzgle4g_H_OjHAIY";
+
+let supabaseUrl = normalizeSupabaseUrl(localStorage.getItem("sb_url") || DEFAULT_SB_URL);
+let supabaseKey = (localStorage.getItem("sb_key") || DEFAULT_SB_KEY).trim();
 
 // Inicialización al cargar la página
 document.addEventListener("DOMContentLoaded", () => {
