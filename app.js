@@ -2,6 +2,12 @@
    LÓGICA PRINCIPAL - EL QUINCHO RESERVAS
    ========================================== */
 
+// Capturador de errores global para mostrar alertas en caso de fallos
+window.onerror = function(message, source, lineno, colno, error) {
+  alert("ERROR DETECTADO: " + message + "\nEn: " + source + " (Línea: " + lineno + ")\nDetalles: " + (error ? error.stack : ""));
+  return false;
+};
+
 // Número de WhatsApp del dueño (Configurable en producción)
 const OWNER_PHONE = "5492604552146"; // Configurado al WhatsApp del propietario 2604552146
 
@@ -36,7 +42,7 @@ function decrypt(hex, key = SECRET_KEY) {
 // Obtener las reservas desencriptadas (solo para el admin logueado)
 function getDecryptedBookings() {
   const isLogged = localStorage.getItem("admin_logged") === "true";
-  const key = sessionStorage.getItem("admin_key") || SECRET_KEY;
+  const key = SECRET_KEY; // Usar siempre SECRET_KEY constante para encriptar/desencriptar de forma consistente
   return bookings.map(b => {
     if (b.isEncrypted) {
       return {
@@ -44,8 +50,8 @@ function getDecryptedBookings() {
         name: isLogged ? decrypt(b.name, key) : "[Reservado]",
         phone: isLogged ? decrypt(b.phone, key) : "",
         notes: isLogged ? decrypt(b.notes, key) : "",
-        totalPrice: isLogged ? Number(decrypt(b.totalPrice, key)) : 0,
-        deposit: isLogged ? Number(decrypt(b.deposit, key)) : 0
+        totalPrice: isLogged ? (Number(decrypt(b.totalPrice, key)) || 0) : 0,
+        deposit: isLogged ? (Number(decrypt(b.deposit, key)) || 0) : 0
       };
     }
     // Si no está encriptada pero la cargamos (respaldo local), simular la ocultación si no es admin
@@ -59,7 +65,11 @@ function getDecryptedBookings() {
         deposit: 0
       };
     }
-    return b;
+    return {
+      ...b,
+      totalPrice: Number(b.totalPrice) || 0,
+      deposit: Number(b.deposit) || 0
+    };
   });
 }
 
@@ -215,6 +225,22 @@ async function initApp() {
   if (document.getElementById("admin-date")) document.getElementById("admin-date").value = todayStr;
   if (document.getElementById("expense-date")) document.getElementById("expense-date").value = todayStr;
   
+  // Cargar costo de limpieza inicial
+  const cleaningCost = localStorage.getItem("cleaning_cost") || "4000";
+  const cleaningInput = document.getElementById("cleaning-cost-input");
+  if (cleaningInput) cleaningInput.value = cleaningCost;
+
+  // Escuchar cambios en el precio total para actualizar la seña si está activado Pago Completo
+  const totalPriceInput = document.getElementById("admin-total-price");
+  if (totalPriceInput) {
+    totalPriceInput.addEventListener("input", () => {
+      const paidFullCheckbox = document.getElementById("admin-paid-full");
+      if (paidFullCheckbox && paidFullCheckbox.checked) {
+        document.getElementById("admin-deposit").value = totalPriceInput.value || 0;
+      }
+    });
+  }
+
   // Renderizar listados y balances financieros
   renderExpenses();
   populateFinanceYears();
@@ -644,13 +670,13 @@ function renderAdminBookings() {
 
   const decryptedBookingsList = getDecryptedBookings();
   const filteredBookings = decryptedBookingsList.filter(b => {
+    if (!b || !b.date || typeof b.date !== 'string') return false;
     const [y, m, d] = b.date.split("-").map(Number);
     
     // Primero, debe pertenecer al mes/año en pantalla
     if (y !== viewYear || m !== viewMonth) return false;
     
-    // Segundo, solo mostrar eventos de hoy inclusive hacia el futuro
-    return b.date >= todayStr;
+    return true;
   });
 
   // Ordenar reservas por fecha y luego por turno (mañana antes de noche)
@@ -659,11 +685,11 @@ function renderAdminBookings() {
     return a.slot.localeCompare(b.slot);
   });
 
-  // Actualizar el título de la tarjeta para indicar qué mes estamos viendo y que es a partir de hoy
+  // Actualizar el título de la tarjeta para indicar qué mes estamos viendo
   const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
   const listTitle = document.getElementById("admin-bookings-title");
   if (listTitle) {
-    listTitle.innerHTML = `<i class="fa-solid fa-list-check"></i> Reservas de ${monthNames[currentDate.getMonth()]} ${viewYear} (Desde hoy)`;
+    listTitle.innerHTML = `<i class="fa-solid fa-list-check"></i> Reservas de ${monthNames[currentDate.getMonth()]} ${viewYear}`;
   }
 
   if (sortedBookings.length === 0) {
@@ -790,7 +816,13 @@ async function handleAdminManualBooking(event) {
   document.getElementById("admin-phone").value = "";
   document.getElementById("admin-total-price").value = "";
   document.getElementById("admin-deposit").value = "0";
+  document.getElementById("admin-deposit").disabled = false;
   document.getElementById("admin-notes").value = "";
+  
+  const paidFullCheckbox = document.getElementById("admin-paid-full");
+  if (paidFullCheckbox) {
+    paidFullCheckbox.checked = false;
+  }
   
   // Ocultar campos colapsables
   document.getElementById("admin-booking-fields-collapsible").classList.add("hidden");
@@ -836,6 +868,30 @@ function handleSupabaseSave(event) {
 
 // --- GESTIÓN FINANCIERA Y DE GASTOS ---
 
+// Guardar el costo de limpieza en localStorage
+function saveCleaningCost() {
+  const input = document.getElementById("cleaning-cost-input");
+  if (input) {
+    const cost = parseInt(input.value) || 0;
+    localStorage.setItem("cleaning_cost", cost);
+    updateFinanceSummary();
+  }
+}
+
+// Escuchar cambios en el checkbox de Pago Completo
+function handlePaidFullChange() {
+  const isPaidFull = document.getElementById("admin-paid-full").checked;
+  const totalPriceInput = document.getElementById("admin-total-price");
+  const depositInput = document.getElementById("admin-deposit");
+  
+  if (isPaidFull) {
+    depositInput.value = totalPriceInput.value || 0;
+    depositInput.disabled = true;
+  } else {
+    depositInput.disabled = false;
+  }
+}
+
 // Cargar Gastos desde LocalStorage con valores iniciales si no existen
 function loadExpenses() {
   const localData = localStorage.getItem("local_expenses_backup");
@@ -864,13 +920,17 @@ function populateFinanceYears() {
   years.add(new Date().getFullYear());
   
   bookings.forEach(b => {
-    const y = parseInt(b.date.split("-")[0]);
-    if (y) years.add(y);
+    if (b && b.date && typeof b.date === 'string') {
+      const y = parseInt(b.date.split("-")[0]);
+      if (y) years.add(y);
+    }
   });
   
   expenses.forEach(e => {
-    const y = parseInt(e.date.split("-")[0]);
-    if (y) years.add(y);
+    if (e && e.date && typeof e.date === 'string') {
+      const y = parseInt(e.date.split("-")[0]);
+      if (y) years.add(y);
+    }
   });
   
   const currentVal = yearSelect.value;
@@ -902,6 +962,7 @@ function updateFinanceSummary() {
   // Filtrar Reservas (desencriptando las ganancias si corresponde)
   const decryptedBookingsList = getDecryptedBookings();
   let filteredBookings = decryptedBookingsList.filter(b => {
+    if (!b || !b.date || typeof b.date !== 'string') return false;
     const [y, m, d] = b.date.split("-").map(Number);
     if (y !== yearVal) return false;
     if (monthVal !== "all" && (m - 1) !== parseInt(monthVal)) return false;
@@ -910,15 +971,27 @@ function updateFinanceSummary() {
   
   // Filtrar Gastos
   let filteredExpenses = expenses.filter(e => {
+    if (!e || !e.date || typeof e.date !== 'string') return false;
     const [y, m, d] = e.date.split("-").map(Number);
     if (y !== yearVal) return false;
     if (monthVal !== "all" && (m - 1) !== parseInt(monthVal)) return false;
     return true;
   });
   
-  // Calcular sumas
-  const totalIncome = filteredBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
-  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  // Obtener fecha de hoy local en formato YYYY-MM-DD para determinar si el evento ya sucedió o es hoy
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  // Filtrar solo las reservas concluidas (fecha <= hoy) para aplicar el gasto de limpieza
+  const pastBookings = filteredBookings.filter(b => b.date <= todayStr);
+
+  // Cargar costo de limpieza por reserva
+  const cleaningCost = parseInt(localStorage.getItem("cleaning_cost")) || 4000;
+  const totalCleaningExpenses = pastBookings.length * cleaningCost;
+
+  // Calcular sumas: ingresos sumando la seña (deposit) de cada reserva (lo cobrado hasta ahora)
+  const totalIncome = filteredBookings.reduce((sum, b) => sum + (Number(b.deposit) || 0), 0);
+  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0) + totalCleaningExpenses;
   const netProfit = totalIncome - totalExpenses;
   
   // Actualizar estadísticas en UI
@@ -931,6 +1004,12 @@ function updateFinanceSummary() {
     netEl.style.color = "var(--success)";
   } else {
     netEl.style.color = "var(--danger)";
+  }
+
+  // Nota de desglose de limpieza
+  const cleaningNoteEl = document.getElementById("finance-cleaning-note");
+  if (cleaningNoteEl) {
+    cleaningNoteEl.innerHTML = `<i class="fa-solid fa-broom"></i> Gasto limpieza automático incluido: <strong>$${totalCleaningExpenses.toLocaleString()}</strong> (${pastBookings.length} de ${filteredBookings.length} reservas realizadas/hoy x $${cleaningCost.toLocaleString()})`;
   }
 }
 
@@ -1358,11 +1437,11 @@ function editBookingAdmin(date, slot) {
   editOriginalDate = date;
   editOriginalSlot = slot;
 
-  const key = sessionStorage.getItem("admin_key") || SECRET_KEY;
+  const key = SECRET_KEY; // Usar siempre SECRET_KEY constante para la desencriptación
   const decName = booking.isEncrypted ? decrypt(booking.name, key) : booking.name;
   const decPhone = booking.isEncrypted ? decrypt(booking.phone, key) : booking.phone;
-  const decTotalPrice = booking.isEncrypted ? Number(decrypt(booking.totalPrice, key)) : booking.totalPrice;
-  const decDeposit = booking.isEncrypted ? Number(decrypt(booking.deposit, key)) : booking.deposit;
+  const decTotalPrice = booking.isEncrypted ? Number(decrypt(booking.totalPrice, key)) : Number(booking.totalPrice);
+  const decDeposit = booking.isEncrypted ? Number(decrypt(booking.deposit, key)) : Number(booking.deposit);
   const decNotes = booking.isEncrypted ? decrypt(booking.notes, key) : booking.notes;
 
   // Prefilar formulario
@@ -1373,6 +1452,14 @@ function editBookingAdmin(date, slot) {
   document.getElementById("admin-total-price").value = decTotalPrice || 0;
   document.getElementById("admin-deposit").value = decDeposit || 0;
   document.getElementById("admin-notes").value = decNotes || "";
+
+  // Configurar checkbox Pago Completo
+  const isPaidFull = (decTotalPrice > 0 && decTotalPrice === decDeposit);
+  const paidFullCheckbox = document.getElementById("admin-paid-full");
+  if (paidFullCheckbox) {
+    paidFullCheckbox.checked = isPaidFull;
+  }
+  document.getElementById("admin-deposit").disabled = isPaidFull;
 
   // Cambiar textos y botones del formulario
   const [year, month, day] = date.split("-");
@@ -1414,7 +1501,14 @@ function cancelAdminEdit() {
   document.getElementById("admin-phone").value = "";
   document.getElementById("admin-total-price").value = "";
   document.getElementById("admin-deposit").value = "0";
+  document.getElementById("admin-deposit").disabled = false;
   document.getElementById("admin-notes").value = "";
+
+  // Resetear checkbox Pago Completo
+  const paidFullCheckbox = document.getElementById("admin-paid-full");
+  if (paidFullCheckbox) {
+    paidFullCheckbox.checked = false;
+  }
 
   // Ocultar formulario colapsable
   const collapsible = document.getElementById("admin-booking-fields-collapsible");

@@ -264,11 +264,104 @@
           </button>
         </div>
 
+        <!-- Registrar Nueva Reserva (Calendario del Administrador primero) -->
+        <div class="card">
+          <h3><i class="fa-solid fa-plus-circle"></i> Registrar Nueva Reserva</h3>
+          <p class="text-secondary text-sm">Selecciona una fecha directamente en el calendario de abajo para cargar sus datos:</p>
+          
+          <!-- Calendario del Administrador -->
+          <div class="admin-calendar-wrapper" style="margin-top: 16px;">
+            <div class="calendar-header">
+              <button class="calendar-btn" type="button" id="admin-prev-month-btn"><i class="fa-solid fa-chevron-left"></i></button>
+              <h3 id="admin-calendar-month-year">Agosto 2026</h3>
+              <button class="calendar-btn" type="button" id="admin-next-month-btn"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+            <div class="calendar-weekdays">
+              <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
+            </div>
+            <div class="calendar-days" id="admin-calendar-days-grid">
+              <!-- Se autogenera con JS -->
+            </div>
+          </div>
+          
+          <!-- Formulario Desplegable (Oculto por defecto) -->
+          <div id="admin-booking-fields-collapsible" class="admin-booking-fields-collapsible hidden">
+            <hr style="margin: 20px 0; border-color: var(--border);">
+            <h4 id="admin-booking-fields-title" style="margin-bottom: 12px; color: var(--accent);">Reservar para el día DD/MM/AAAA</h4>
+            
+            <form id="admin-reserve-form" onsubmit="handleAdminManualBooking(event)">
+              <!-- Guardamos la fecha seleccionada en un input oculto -->
+              <input type="hidden" id="admin-date">
+              
+              <div class="grid-form-fields">
+                <div class="form-group">
+                  <label for="admin-slot">Turno</label>
+                  <select id="admin-slot" class="form-control" required>
+                    <option value="day">Turno Mañana (10:00 - 19:00)</option>
+                    <option value="night">Turno Noche (20:30 - 04:30)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="admin-name">Nombre del Cliente</label>
+                  <input type="text" id="admin-name" required placeholder="Ej: Pedro Gómez" class="form-control">
+                </div>
+                <div class="form-group">
+                  <label for="admin-phone">Teléfono de WhatsApp</label>
+                  <input type="tel" id="admin-phone" placeholder="Ej: 5492612345678" class="form-control">
+                </div>
+                <div class="form-group">
+                  <label for="admin-total-price">Monto Total ($)</label>
+                  <input type="number" id="admin-total-price" required placeholder="Ej: 50000" class="form-control" min="0">
+                </div>
+                <div class="form-group">
+                  <label for="admin-deposit">Seña Entregada ($)</label>
+                  <input type="number" id="admin-deposit" required placeholder="Ej: 20000" class="form-control" min="0" value="0">
+                </div>
+                <div class="form-group col-span-2-desktop" style="display: flex; align-items: center; gap: 8px; margin-top: 5px; margin-bottom: 15px;">
+                  <input type="checkbox" id="admin-paid-full" onchange="handlePaidFullChange()" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--success);">
+                  <label for="admin-paid-full" style="margin-bottom: 0; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--success);">¿Pago Completo? (Descontar saldo pendiente)</label>
+                </div>
+                <div class="form-group col-span-2-desktop">
+                  <label for="admin-notes">Notas / Observaciones</label>
+                  <textarea id="admin-notes" placeholder="Ej: Cumpleaños, catering, seña por transferencia, etc." class="form-control" rows="2" style="resize: vertical;"></textarea>
+                </div>
+              </div>
+              <div style="display: flex; gap: 10px; margin-top: 16px;">
+                <button type="submit" id="admin-submit-btn" class="btn btn-success btn-block" style="margin: 0; flex: 1;">Confirmar Reserva</button>
+                <button type="button" id="admin-cancel-edit-btn" class="btn btn-outline-danger hidden" style="margin: 0; padding: 10px 16px;" onclick="cancelAdminEdit()">Cancelar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Lista de Reservas Registradas de este Mes (Segundo lugar) -->
+        <div class="card table-card" style="margin-bottom: 16px;">
+          <h3 id="admin-bookings-title"><i class="fa-solid fa-list-check"></i> Listado de Reservas</h3>
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Turno</th>
+                  <th>Cliente</th>
+                  <th>Total</th>
+                  <th>Seña</th>
+                  <th>Resta</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="admin-bookings-list">
+                <!-- Se inyecta con JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Resumen de Ganancias -->
         <div class="card" style="margin-bottom: 16px;">
           <h3><i class="fa-solid fa-chart-line"></i> Resumen de Ganancias</h3>
           
-          <div class="finance-filters">
+          <div class="finance-filters" style="display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 20px;">
             <div class="form-group inline-group">
               <label for="finance-year">Año:</label>
               <select id="finance-year" class="form-control form-control-sm" style="width: 100px;" onchange="updateFinanceSummary()">
@@ -292,6 +385,10 @@
                 <option value="10">Noviembre</option>
                 <option value="11">Diciembre</option>
               </select>
+            </div>
+            <div class="form-group inline-group">
+              <label for="cleaning-cost-input">Limpieza por Reserva ($):</label>
+              <input type="number" id="cleaning-cost-input" class="form-control form-control-sm" style="width: 110px;" min="0" onchange="saveCleaningCost()">
             </div>
           </div>
           
@@ -318,76 +415,42 @@
               </div>
             </div>
           </div>
+          <div id="finance-cleaning-note" class="text-secondary text-sm" style="margin-top: 12px; text-align: center; font-style: italic;">
+            <!-- Se cargará por JS -->
+          </div>
         </div>
 
         <div class="grid-admin">
-          <!-- Nueva Reserva con Calendario Integrado -->
-          <div class="card col-span-2-desktop">
-            <h3><i class="fa-solid fa-plus-circle"></i> Registrar Nueva Reserva</h3>
-            <p class="text-secondary text-sm">Selecciona una fecha directamente en el calendario de abajo para cargar sus datos:</p>
-            
-            <!-- Calendario del Administrador -->
-            <div class="admin-calendar-wrapper" style="margin-top: 16px;">
-              <div class="calendar-header">
-                <button class="calendar-btn" type="button" id="admin-prev-month-btn"><i class="fa-solid fa-chevron-left"></i></button>
-                <h3 id="admin-calendar-month-year">Agosto 2026</h3>
-                <button class="calendar-btn" type="button" id="admin-next-month-btn"><i class="fa-solid fa-chevron-right"></i></button>
+          <!-- Registrar Gasto -->
+          <div class="card">
+            <h3><i class="fa-solid fa-receipt"></i> Registrar Nuevo Gasto</h3>
+            <form id="admin-expense-form" onsubmit="handleAdminAddExpense(event)">
+              <div class="form-group">
+                <label for="expense-date">Fecha</label>
+                <input type="date" id="expense-date" required class="form-control">
               </div>
-              <div class="calendar-weekdays">
-                <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
+              <div class="form-group">
+                <label for="expense-category">Categoría</label>
+                <select id="expense-category" class="form-control" required>
+                  <option value="Limpieza">Limpieza</option>
+                  <option value="Mantenimiento">Mantenimiento</option>
+                  <option value="Servicios">Servicios (Luz, Gas, etc.)</option>
+                  <option value="Otros">Otros / Varios</option>
+                </select>
               </div>
-              <div class="calendar-days" id="admin-calendar-days-grid">
-                <!-- Se autogenera con JS -->
+              <div class="form-group">
+                <label for="expense-desc">Descripción</label>
+                <input type="text" id="expense-desc" required placeholder="Ej: Pago limpieza Juan" class="form-control">
               </div>
-            </div>
-            
-            <!-- Formulario Desplegable (Oculto por defecto) -->
-            <div id="admin-booking-fields-collapsible" class="admin-booking-fields-collapsible hidden">
-              <hr style="margin: 20px 0; border-color: var(--border);">
-              <h4 id="admin-booking-fields-title" style="margin-bottom: 12px; color: var(--accent);">Reservar para el día DD/MM/AAAA</h4>
-              
-              <form id="admin-reserve-form" onsubmit="handleAdminManualBooking(event)">
-                <!-- Guardamos la fecha seleccionada en un input oculto -->
-                <input type="hidden" id="admin-date">
-                
-                <div class="grid-form-fields">
-                  <div class="form-group">
-                    <label for="admin-slot">Turno</label>
-                    <select id="admin-slot" class="form-control" required>
-                      <option value="day">Turno Mañana (10:00 - 19:00)</option>
-                      <option value="night">Turno Noche (20:30 - 04:30)</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label for="admin-name">Nombre del Cliente</label>
-                    <input type="text" id="admin-name" required placeholder="Ej: Pedro Gómez" class="form-control">
-                  </div>
-                  <div class="form-group">
-                    <label for="admin-phone">Teléfono de WhatsApp</label>
-                    <input type="tel" id="admin-phone" placeholder="Ej: 5492612345678" class="form-control">
-                  </div>
-                  <div class="form-group">
-                    <label for="admin-total-price">Monto Total ($)</label>
-                    <input type="number" id="admin-total-price" required placeholder="Ej: 50000" class="form-control" min="0">
-                  </div>
-                  <div class="form-group">
-                    <label for="admin-deposit">Seña Entregada ($)</label>
-                    <input type="number" id="admin-deposit" required placeholder="Ej: 20000" class="form-control" min="0" value="0">
-                  </div>
-                  <div class="form-group col-span-2-desktop">
-                    <label for="admin-notes">Notas / Observaciones</label>
-                    <textarea id="admin-notes" placeholder="Ej: Cumpleaños, catering, seña por transferencia, etc." class="form-control" rows="2" style="resize: vertical;"></textarea>
-                  </div>
-                </div>
-                <div style="display: flex; gap: 10px; margin-top: 16px;">
-                  <button type="submit" id="admin-submit-btn" class="btn btn-success btn-block" style="margin: 0; flex: 1;">Confirmar Reserva</button>
-                  <button type="button" id="admin-cancel-edit-btn" class="btn btn-outline-danger hidden" style="margin: 0; padding: 10px 16px;" onclick="cancelAdminEdit()">Cancelar</button>
-                </div>
-              </form>
-            </div>
+              <div class="form-group">
+                <label for="expense-amount">Monto ($)</label>
+                <input type="number" id="expense-amount" required placeholder="Ej: 3500" class="form-control" min="1">
+              </div>
+              <button type="submit" class="btn btn-primary btn-block">Agregar Gasto</button>
+            </form>
           </div>
 
-          <!-- Base de datos de Reservas Activas -->
+          <!-- Gestión de Sincronización -->
           <div class="card">
             <h3><i class="fa-solid fa-database"></i> Gestión de Sincronización</h3>
             <p class="text-secondary text-sm">
@@ -424,60 +487,7 @@
                   <button type="submit" class="btn btn-primary btn-sm btn-block">Guardar Conexión</button>
                 </form>
               </div>
-
             </div>
-          </div>
-
-          <!-- Registrar Gasto -->
-          <div class="card">
-            <h3><i class="fa-solid fa-receipt"></i> Registrar Nuevo Gasto</h3>
-            <form id="admin-expense-form" onsubmit="handleAdminAddExpense(event)">
-              <div class="form-group">
-                <label for="expense-date">Fecha</label>
-                <input type="date" id="expense-date" required class="form-control">
-              </div>
-              <div class="form-group">
-                <label for="expense-category">Categoría</label>
-                <select id="expense-category" class="form-control" required>
-                  <option value="Limpieza">Limpieza</option>
-                  <option value="Mantenimiento">Mantenimiento</option>
-                  <option value="Servicios">Servicios (Luz, Gas, etc.)</option>
-                  <option value="Otros">Otros / Varios</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="expense-desc">Descripción</label>
-                <input type="text" id="expense-desc" required placeholder="Ej: Pago limpieza Juan" class="form-control">
-              </div>
-              <div class="form-group">
-                <label for="expense-amount">Monto ($)</label>
-                <input type="number" id="expense-amount" required placeholder="Ej: 3500" class="form-control" min="1">
-              </div>
-              <button type="submit" class="btn btn-primary btn-block">Agregar Gasto</button>
-            </form>
-          </div>
-        </div>
-
-        <!-- Lista de Reservas Registradas -->
-        <div class="card table-card" style="margin-bottom: 16px;">
-          <h3 id="admin-bookings-title"><i class="fa-solid fa-list-check"></i> Listado de Reservas</h3>
-          <div class="table-responsive">
-            <table class="admin-table">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Turno</th>
-                  <th>Cliente</th>
-                  <th>Total</th>
-                  <th>Seña</th>
-                  <th>Resta</th>
-                  <th>Acción</th>
-                </tr>
-              </thead>
-              <tbody id="admin-bookings-list">
-                <!-- Se inyecta con JS -->
-              </tbody>
-            </table>
           </div>
         </div>
 

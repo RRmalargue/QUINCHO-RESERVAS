@@ -1,10 +1,9 @@
-const CACHE_NAME = 'quincho-cache-v2';
+const CACHE_NAME = 'quincho-cache-v3';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
-  './bookings.json',
   './manifest.json',
   './assets/logo.svg',
   './assets/quincho-main.jpg',
@@ -36,6 +35,12 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  // Evitar cachear bookings.json o llamadas a Supabase para evitar datos obsoletos (stale data)
+  if (e.request.url.includes('bookings.json') || e.request.url.includes('supabase.co')) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
   e.respondWith(
     caches.match(e.request).then((cachedResponse) => {
       return cachedResponse || fetch(e.request);

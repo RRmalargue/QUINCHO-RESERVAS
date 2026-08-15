@@ -229,6 +229,19 @@ h1, h2, h3, h4 {
   max-width: 600px;
   margin: 0 auto;
   padding: 20px;
+  transition: max-width 0.3s ease;
+}
+
+@media (min-width: 768px) {
+  .app-main {
+    max-width: 95%;
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-main {
+    max-width: 1200px;
+  }
 }
 
 /* Tabs */
@@ -1167,5 +1180,13 @@ h1, h2, h3, h4 {
 @media (min-width: 992px) {
   .col-span-2-desktop {
     grid-column: span 2;
+  }
+}
+
+/* Limitar tamaño del calendario en pantallas grandes para que no quede gigante */
+@media (min-width: 768px) {
+  .calendar-wrapper, .admin-calendar-wrapper {
+    max-width: 480px;
+    margin: 0 auto 20px auto;
   }
 }
