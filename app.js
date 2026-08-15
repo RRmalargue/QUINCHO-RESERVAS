@@ -1283,7 +1283,7 @@ function handleImportJSON(event) {
           try {
             // 1. Borrar todas las reservas en Supabase
             console.log("Limpiando base de datos Supabase para importación...");
-            const delRes = await fetch(`${supabaseUrl}/rest/v1/bookings?select=*`, {
+            const delRes = await fetch(`${supabaseUrl}/rest/v1/bookings?id=gt.0`, {
               method: "DELETE",
               headers: {
                 "apikey": supabaseKey,
@@ -1292,7 +1292,19 @@ function handleImportJSON(event) {
             });
             
             if (delRes.ok) {
-              // 2. Insertar las reservas importadas en lote
+              // 2. Normalizar las reservas para asegurar que tengan exactamente las mismas propiedades (evita error PGRST102)
+              const normalizedBookings = bookings.map(b => ({
+                date: b.date || "",
+                slot: b.slot || "",
+                name: b.name || "",
+                phone: b.phone || "",
+                totalPrice: b.totalPrice !== undefined ? String(b.totalPrice) : "0",
+                deposit: b.deposit !== undefined ? String(b.deposit) : "0",
+                notes: b.notes || "",
+                isEncrypted: b.isEncrypted !== undefined ? b.isEncrypted : false,
+                isGCal: b.isGCal !== undefined ? b.isGCal : false
+              }));
+
               console.log("Subiendo lote de reservas a Supabase...");
               const insertRes = await fetch(`${supabaseUrl}/rest/v1/bookings`, {
                 method: "POST",
@@ -1302,7 +1314,7 @@ function handleImportJSON(event) {
                   "Content-Type": "application/json",
                   "Prefer": "return=minimal"
                 },
-                body: JSON.stringify(bookings)
+                body: JSON.stringify(normalizedBookings)
               });
               if (insertRes.ok) {
                 alert("Importación y sincronización con la nube exitosa.");
