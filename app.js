@@ -1771,3 +1771,42 @@ function cancelAdminEdit() {
   renderAdminBookings();
 }
 
+// Abrir navegación GPS al quincho (App nativa o navegador web)
+function irAlQuincho(event) {
+  if (event) event.preventDefault();
+  const lat = -35.46819696404378;
+  const lon = -69.56208138644585;
+  const label = encodeURIComponent("Quincho Las 3R");
+  
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isAndroid = /Android/.test(navigator.userAgent);
+  
+  const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
+  
+  if (isIOS) {
+    // Intentar abrir Google Maps app en iOS
+    const appUrl = `comgooglemaps://?daddr=${lat},${lon}&directionsmode=driving`;
+    const start = Date.now();
+    window.location.href = appUrl;
+    
+    // Si en 1.5 segundos sigue aquí, es porque la app no está y redirigimos al navegador
+    setTimeout(() => {
+      if (Date.now() - start < 2000) {
+        window.open(webUrl, '_blank');
+      }
+    }, 1500);
+  } else if (isAndroid) {
+    // En Android, usamos la URI "geo" que abre la app de mapas por defecto del sistema
+    const geoUrl = `geo:${lat},${lon}?q=${lat},${lon}(${label})`;
+    window.location.href = geoUrl;
+    
+    // Si no abre por alguna razón, usar el enlace web tradicional de respaldo
+    setTimeout(() => {
+      window.open(webUrl, '_blank');
+    }, 1500);
+  } else {
+    // Computadora u otros dispositivos: abrir enlace web normal
+    window.open(webUrl, '_blank');
+  }
+}
+
