@@ -319,10 +319,10 @@
           </button>
         </div>
 
-        <!-- Registrar Nueva Reserva (Calendario del Administrador primero) -->
-        <div class="card">
-          <h3><i class="fa-solid fa-plus-circle"></i> Registrar Nueva Reserva</h3>
-          <p class="text-secondary text-sm">Selecciona una fecha directamente en el calendario de abajo para cargar sus datos:</p>
+        <!-- 1. Calendario de Reservas (Primero) -->
+        <div class="card" style="margin-bottom: 16px;">
+          <h3><i class="fa-solid fa-calendar-days"></i> Calendario de Reservas</h3>
+          <p class="text-secondary text-sm">Selecciona una fecha directamente en el calendario de abajo para ver sus reservas o cargar datos:</p>
           
           <!-- Calendario del Administrador -->
           <div class="admin-calendar-wrapper" style="margin-top: 16px;">
@@ -338,58 +338,9 @@
               <!-- Se autogenera con JS -->
             </div>
           </div>
-          
-          <!-- Formulario Desplegable (Oculto por defecto) -->
-          <div id="admin-booking-fields-collapsible" class="admin-booking-fields-collapsible hidden">
-            <hr style="margin: 20px 0; border-color: var(--border);">
-            <h4 id="admin-booking-fields-title" style="margin-bottom: 12px; color: var(--accent);">Reservar para el día DD/MM/AAAA</h4>
-            
-            <form id="admin-reserve-form" onsubmit="handleAdminManualBooking(event)">
-              <!-- Guardamos la fecha seleccionada en un input oculto -->
-              <input type="hidden" id="admin-date">
-              
-              <div class="grid-form-fields">
-                <div class="form-group">
-                  <label for="admin-slot">Turno</label>
-                  <select id="admin-slot" class="form-control" required>
-                    <option value="day">Turno Mañana (10:00 - 19:00)</option>
-                    <option value="night">Turno Noche (20:30 - 04:30)</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="admin-name">Nombre del Cliente</label>
-                  <input type="text" id="admin-name" required placeholder="Ej: Pedro Gómez" class="form-control">
-                </div>
-                <div class="form-group">
-                  <label for="admin-phone">Teléfono de WhatsApp</label>
-                  <input type="tel" id="admin-phone" placeholder="Ej: 5492612345678" class="form-control">
-                </div>
-                <div class="form-group">
-                  <label for="admin-total-price">Monto Total ($)</label>
-                  <input type="number" id="admin-total-price" required placeholder="Ej: 50000" class="form-control" min="0">
-                </div>
-                <div class="form-group">
-                  <label for="admin-deposit">Seña Entregada ($)</label>
-                  <input type="number" id="admin-deposit" required placeholder="Ej: 20000" class="form-control" min="0" value="0">
-                </div>
-                <div class="form-group col-span-2-desktop" style="display: flex; align-items: center; gap: 8px; margin-top: 5px; margin-bottom: 15px;">
-                  <input type="checkbox" id="admin-paid-full" onchange="handlePaidFullChange()" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--success);">
-                  <label for="admin-paid-full" style="margin-bottom: 0; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--success);">¿Pago Completo? (Descontar saldo pendiente)</label>
-                </div>
-                <div class="form-group col-span-2-desktop">
-                  <label for="admin-notes">Notas / Observaciones</label>
-                  <textarea id="admin-notes" placeholder="Ej: Cumpleaños, catering, seña por transferencia, etc." class="form-control" rows="2" style="resize: vertical;"></textarea>
-                </div>
-              </div>
-              <div style="display: flex; gap: 10px; margin-top: 16px;">
-                <button type="submit" id="admin-submit-btn" class="btn btn-success btn-block" style="margin: 0; flex: 1;">Confirmar Reserva</button>
-                <button type="button" id="admin-cancel-edit-btn" class="btn btn-outline-danger hidden" style="margin: 0; padding: 10px 16px;" onclick="cancelAdminEdit()">Cancelar</button>
-              </div>
-            </form>
-          </div>
         </div>
 
-        <!-- Lista de Reservas Registradas de este Mes (Segundo lugar) -->
+        <!-- 2. Listado de Reservas (Segundo - Inmediatamente abajo del Calendario) -->
         <div class="card table-card" style="margin-bottom: 16px;">
           <h3 id="admin-bookings-title"><i class="fa-solid fa-list-check"></i> Listado de Reservas</h3>
           <div class="table-responsive">
@@ -410,6 +361,54 @@
               </tbody>
             </table>
           </div>
+        </div>
+
+        <!-- 3. Formulario de Reserva/Edición (Tercero - Oculto por defecto, se abre abajo al seleccionar un día) -->
+        <div id="admin-booking-fields-collapsible" class="card admin-booking-fields-collapsible hidden" style="margin-bottom: 16px;">
+          <h4 id="admin-booking-fields-title" style="margin-bottom: 12px; color: var(--accent);"><i class="fa-solid fa-edit"></i> Registrar Nueva Reserva</h4>
+          
+          <form id="admin-reserve-form" onsubmit="handleAdminManualBooking(event)">
+            <!-- Guardamos la fecha seleccionada en un input oculto -->
+            <input type="hidden" id="admin-date">
+            
+            <div class="grid-form-fields">
+              <div class="form-group">
+                <label for="admin-slot">Turno</label>
+                <select id="admin-slot" class="form-control" required>
+                  <option value="day">Turno Mañana (10:00 - 19:00)</option>
+                  <option value="night">Turno Noche (20:30 - 04:30)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="admin-name">Nombre del Cliente</label>
+                <input type="text" id="admin-name" required placeholder="Ej: Pedro Gómez" class="form-control">
+              </div>
+              <div class="form-group">
+                <label for="admin-phone">Teléfono de WhatsApp</label>
+                <input type="tel" id="admin-phone" placeholder="Ej: 5492612345678" class="form-control">
+              </div>
+              <div class="form-group">
+                <label for="admin-total-price">Monto Total ($)</label>
+                <input type="number" id="admin-total-price" required placeholder="Ej: 50000" class="form-control" min="0">
+              </div>
+              <div class="form-group">
+                <label for="admin-deposit">Seña Entregada ($)</label>
+                <input type="number" id="admin-deposit" required placeholder="Ej: 20000" class="form-control" min="0" value="0">
+              </div>
+              <div class="form-group col-span-2-desktop" style="display: flex; align-items: center; gap: 8px; margin-top: 5px; margin-bottom: 15px;">
+                <input type="checkbox" id="admin-paid-full" onchange="handlePaidFullChange()" style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--success);">
+                <label for="admin-paid-full" style="margin-bottom: 0; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--success);">¿Pago Completo? (Descontar saldo pendiente)</label>
+              </div>
+              <div class="form-group col-span-2-desktop">
+                <label for="admin-notes">Notas / Observaciones</label>
+                <textarea id="admin-notes" placeholder="Ej: Cumpleaños, catering, seña por transferencia, etc." class="form-control" rows="2" style="resize: vertical;"></textarea>
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 16px;">
+              <button type="submit" id="admin-submit-btn" class="btn btn-success btn-block" style="margin: 0; flex: 1;">Confirmar Reserva</button>
+              <button type="button" id="admin-cancel-edit-btn" class="btn btn-outline-danger hidden" style="margin: 0; padding: 10px 16px;" onclick="cancelAdminEdit()">Cancelar</button>
+            </div>
+          </form>
         </div>
 
         <!-- Resumen de Ganancias -->
