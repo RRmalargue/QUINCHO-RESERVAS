@@ -1352,3 +1352,10 @@ h1, h2, h3, h4 {
   background: var(--accent);
   transform: scale(1.25);
 }
+
+/* Forzar que el iframe del mapa ocupe todo su contenedor */
+.card iframe {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 280px;
+}
