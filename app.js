@@ -151,6 +151,69 @@ function setupSwipeGestures() {
       }
     }, { passive: true });
   }
+
+  // 3. Swipe para el calendario de clientes (Cambio de mes)
+  const clientCalendar = document.querySelector(".calendar-wrapper");
+  if (clientCalendar) {
+    let startX = 0;
+    let startY = 0;
+    clientCalendar.addEventListener("touchstart", (e) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+    
+    clientCalendar.addEventListener("touchend", (e) => {
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      const diffX = startX - endX;
+      const diffY = startY - endY;
+      
+      // Permitir swipe solo si es predominantemente horizontal y supera los 60px
+      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 60) {
+        if (diffX > 0) {
+          // Deslizar izquierda -> siguiente mes
+          currentDate.setMonth(currentDate.getMonth() + 1);
+          renderCalendar();
+        } else {
+          // Deslizar derecha -> anterior mes
+          currentDate.setMonth(currentDate.getMonth() - 1);
+          renderCalendar();
+        }
+      }
+    }, { passive: true });
+  }
+
+  // 4. Swipe para el calendario de administración (Cambio de mes)
+  const adminCalendar = document.querySelector(".admin-calendar-wrapper");
+  if (adminCalendar) {
+    let startX = 0;
+    let startY = 0;
+    adminCalendar.addEventListener("touchstart", (e) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+    
+    adminCalendar.addEventListener("touchend", (e) => {
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      const diffX = startX - endX;
+      const diffY = startY - endY;
+      
+      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 60) {
+        if (diffX > 0) {
+          // Deslizar izquierda -> siguiente mes
+          currentDate.setMonth(currentDate.getMonth() + 1);
+          renderAdminCalendar();
+          renderAdminBookings();
+        } else {
+          // Deslizar derecha -> anterior mes
+          currentDate.setMonth(currentDate.getMonth() - 1);
+          renderAdminCalendar();
+          renderAdminBookings();
+        }
+      }
+    }, { passive: true });
+  }
 }
 
 // Inicialización al cargar la página
