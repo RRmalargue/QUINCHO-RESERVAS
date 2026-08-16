@@ -33,7 +33,7 @@
       <img src="./assets/logo.svg" alt="Quincho Las 3R Logo" class="brand-logo" id="headerLogo">
       <div class="brand-text">
         <h1>Quincho Las 3R</h1>
-        <p>Luxury BBQ Villa & Pool</p>
+        <p>Quncho-Salon-Pileta</p>
       </div>
     </div>
     <div class="status-indicator">
@@ -87,26 +87,80 @@
 
       <!-- Especificaciones / Servicios -->
       <h2 class="section-title">Nuestros Servicios</h2>
+      <p class="text-secondary text-sm" style="text-align: center; margin-top: -12px; margin-bottom: 16px;">
+        <i class="fa-solid fa-circle-info"></i> Pulsa en cualquier servicio para ver su galería de fotos completa.
+      </p>
       <div class="services-grid">
-        <div class="service-card">
-          <div class="service-icon"><i class="fa-solid fa-people-group"></i></div>
-          <h4>Capacidad</h4>
-          <p>Cómodo para eventos de hasta 50 invitados SIN VAJILLA.</p>
+        <!-- Pileta -->
+        <div class="service-card" onclick="openServiceGallery('pileta', 'Pileta')">
+          <div class="service-img-wrapper">
+            <img src="./assets/servicio_pileta.jpg" onerror="this.src='./assets/quincho-pool.jpg'" class="service-img" alt="Pileta">
+          </div>
+          <div class="service-content">
+            <div class="service-header-row">
+              <div class="service-icon"><i class="fa-solid fa-swimming-pool"></i></div>
+              <h4>Pileta</h4>
+            </div>
+            <p>Piscina con amplio parque verde y solárium.</p>
+          </div>
         </div>
-        <div class="service-card">
-          <div class="service-icon"><i class="fa-solid fa-fire-burner"></i></div>
-          <h4>Asador Premium</h4>
-          <p>Parrilla , estaca, horno de barro y utensilios profesionales.</p>
+
+        <!-- Salón -->
+        <div class="service-card" onclick="openServiceGallery('salon', 'Salón')">
+          <div class="service-img-wrapper">
+            <img src="./assets/servicio_salon.jpg" onerror="this.src='./assets/quincho-main.jpg'" class="service-img" alt="Salón">
+          </div>
+          <div class="service-content">
+            <div class="service-header-row">
+              <div class="service-icon"><i class="fa-solid fa-house-chimney"></i></div>
+              <h4>Salón</h4>
+            </div>
+            <p>Espacio cerrado climatizado con mesas y sillas.</p>
+          </div>
         </div>
-        <div class="service-card">
-          <div class="service-icon"><i class="fa-solid fa-swimming-pool"></i></div>
-          <h4>Piscina e Iluminación</h4>
-          <p>Pileta con parque.</p>
+
+        <!-- Quincho Exterior -->
+        <div class="service-card" onclick="openServiceGallery('quincho', 'Quincho Exterior')">
+          <div class="service-img-wrapper">
+            <img src="./assets/servicio_quincho.jpg" onerror="this.src='./assets/quincho-main.jpg'" class="service-img" alt="Quincho Exterior">
+          </div>
+          <div class="service-content">
+            <div class="service-header-row">
+              <div class="service-icon"><i class="fa-solid fa-fire-burner"></i></div>
+              <h4>Quincho Exterior</h4>
+            </div>
+            <p>Parrilla, asador, horno de barro y fogón.</p>
+          </div>
         </div>
-        <div class="service-card">
-          <div class="service-icon"><i class="fa-solid fa-snowflake"></i></div>
-          <h4>Confort</h4>
-          <p>WiFi de alta velocidad.</p>
+
+        <!-- Equipamiento -->
+        <div class="service-card" onclick="openServiceGallery('equipamiento', 'Equipamiento')">
+          <div class="service-img-wrapper">
+            <img src="./assets/servicio_equipamiento.jpg" onerror="this.src='./assets/quincho-pool.jpg'" class="service-img" alt="Equipamiento">
+          </div>
+          <div class="service-content">
+            <div class="service-header-row">
+              <div class="service-icon"><i class="fa-solid fa-kitchen-set"></i></div>
+              <h4>Equipamiento</h4>
+            </div>
+            <p>Heladeras, freezer, vajilla y WiFi de alta velocidad.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Normas de Convivencia -->
+      <div class="card" style="margin-top: 20px; text-align: center; background: rgba(217, 119, 6, 0.05); border-color: rgba(217, 119, 6, 0.2);">
+        <h3 style="color: var(--accent); margin-bottom: 8px;"><i class="fa-solid fa-scale-balanced"></i> Normas de Convivencia</h3>
+        <p class="text-secondary text-sm" style="margin-bottom: 16px;">
+          Para garantizar una excelente estadía y cuidar las instalaciones, te pedimos leer nuestro reglamento de convivencia antes de asistir al quincho.
+        </p>
+        <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+          <a href="./assets/normas.docx" download class="btn btn-sm btn-outline-primary" style="margin: 0;">
+            <i class="fa-solid fa-file-word"></i> Descargar Normas (Word)
+          </a>
+          <a href="./assets/normas.pdf" target="_blank" class="btn btn-sm btn-outline-primary" style="margin: 0;">
+            <i class="fa-solid fa-file-pdf"></i> Ver Normas (PDF)
+          </a>
         </div>
       </div>
     </section>
@@ -135,10 +189,11 @@
 
       <!-- Leyenda del Calendario -->
       <div class="calendar-legend">
-        <span class="legend-item"><span class="legend-dot day-avail"></span>Mañana Disponible (Amarillo Tenue)</span>
-        <span class="legend-item"><span class="legend-dot night-avail"></span>Noche Disponible (Celeste Tenue)</span>
-        <span class="legend-item"><span class="legend-dot booked"></span>Reservado (Rojo Tenue)</span>
-        <span class="legend-item"><span style="color: #f87171; font-weight: 800; font-size: 13px; margin-right: 4px;">12</span>Feriado / Fin de semana</span>
+        <span class="legend-item"><span class="legend-dot day-avail"></span>Mañana Disponible (Amarillo)</span>
+        <span class="legend-item"><span class="legend-dot night-avail"></span>Noche Disponible (Gris)</span>
+        <span class="legend-item"><span class="legend-dot booked-deposit"></span>Día Ocupado Común (Naranja)</span>
+        <span class="legend-item"><span class="legend-dot booked-full"></span>Día Feriado / Fin de Semana Ocupado (Rojo)</span>
+        <span class="legend-item"><span style="color: #f87171; font-weight: 800; font-size: 13px; margin-right: 4px;">12</span>Día Feriado / Fin de Semana</span>
       </div>
 
       <!-- Detalle de Turnos del Día Seleccionado -->
@@ -541,6 +596,28 @@
       <span>Admin</span>
     </button>
   </nav>
+
+  <!-- Modal de Galería de Fotos de Servicios -->
+  <div id="gallery-modal" class="modal-backdrop hidden" onclick="closeServiceGalleryOnBackdrop(event)">
+    <div class="gallery-modal-content card">
+      <div class="modal-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+        <h3 id="gallery-modal-title" style="margin: 0; color: var(--accent); font-size: 16px;">Galería</h3>
+        <button class="close-btn" onclick="closeServiceGallery()" style="background: transparent; border: none; color: var(--text-primary); font-size: 20px; cursor: pointer;"><i class="fa-solid fa-times"></i></button>
+      </div>
+      
+      <div class="gallery-carousel-container">
+        <button class="gallery-nav-btn prev" onclick="prevGallerySlide()"><i class="fa-solid fa-chevron-left"></i></button>
+        <div class="gallery-carousel-track" id="gallery-modal-track">
+          <!-- JS cargará las fotos del servicio -->
+        </div>
+        <button class="gallery-nav-btn next" onclick="nextGallerySlide()"><i class="fa-solid fa-chevron-right"></i></button>
+      </div>
+      
+      <div class="gallery-indicators" id="gallery-modal-indicators">
+        <!-- Indicadores de foto -->
+      </div>
+    </div>
+  </div>
 
   <!-- Script Principal de la Aplicación -->
   <script src="app.js"></script>

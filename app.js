@@ -112,6 +112,47 @@ const DEFAULT_SB_KEY = "sb_publishable_d-jgifmPM7jWxOEWzgle4g_H_OjHAIY";
 let supabaseUrl = normalizeSupabaseUrl(localStorage.getItem("sb_url") || DEFAULT_SB_URL);
 let supabaseKey = (localStorage.getItem("sb_key") || DEFAULT_SB_KEY).trim();
 
+// --- COMPORTAMIENTO DE DESLIZAMIENTO (SWIPE) PARA DISPOSITIVOS MÓVILES ---
+function setupSwipeGestures() {
+  // 1. Swipe para el carrusel principal
+  const mainCarousel = document.querySelector(".carousel-container");
+  if (mainCarousel) {
+    let startX = 0;
+    mainCarousel.addEventListener("touchstart", (e) => {
+      startX = e.touches[0].clientX;
+    }, { passive: true });
+    
+    mainCarousel.addEventListener("touchend", (e) => {
+      const endX = e.changedTouches[0].clientX;
+      const diffX = startX - endX;
+      if (diffX > 50) {
+        moveCarousel(1); // Deslizar a la izquierda -> siguiente
+      } else if (diffX < -50) {
+        moveCarousel(-1); // Deslizar a la derecha -> anterior
+      }
+    }, { passive: true });
+  }
+
+  // 2. Swipe para la galería de fotos de servicios
+  const galleryCarousel = document.querySelector(".gallery-carousel-container");
+  if (galleryCarousel) {
+    let startX = 0;
+    galleryCarousel.addEventListener("touchstart", (e) => {
+      startX = e.touches[0].clientX;
+    }, { passive: true });
+    
+    galleryCarousel.addEventListener("touchend", (e) => {
+      const endX = e.changedTouches[0].clientX;
+      const diffX = startX - endX;
+      if (diffX > 50) {
+        nextGallerySlide(); // Deslizar a la izquierda -> siguiente
+      } else if (diffX < -50) {
+        prevGallerySlide(); // Deslizar a la derecha -> anterior
+      }
+    }, { passive: true });
+  }
+}
+
 // Inicialización al cargar la página
 document.addEventListener("DOMContentLoaded", () => {
   // Registrar el Service Worker solo si NO es un entorno local (localhost, 127.0.0.1 o file://)
@@ -134,6 +175,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Cargar Reservas
   initApp();
+
+  // Configurar gestos táctiles (swipe)
+  setupSwipeGestures();
 
   // Si el administrador ya estaba logueado previamente, mostrar el botón de navegación
   if (localStorage.getItem("admin_logged") === "true") {
@@ -475,21 +519,22 @@ async function renderCalendar() {
       dayEl.setAttribute("title", holidayNames[dateStr] || "Feriado");
     }
 
+    // Determinar si es feriado o fin de semana
+    const isSpecialDay = isWeekend || isHoliday;
+
     // Buscar reservas para este día
     const dayBookings = bookings.filter(b => b.date === dateStr);
     const dayReserved = dayBookings.some(b => b.slot === "day");
     const nightReserved = dayBookings.some(b => b.slot === "night");
 
-    // Asignar clases de gradiente dividido en diagonal (135deg)
-    if (dayReserved && nightReserved) {
-      dayEl.classList.add("day-booked-night-booked");
-    } else if (dayReserved) {
-      dayEl.classList.add("day-booked-night-free");
-    } else if (nightReserved) {
-      dayEl.classList.add("day-free-night-booked");
-    } else {
-      dayEl.classList.add("day-free-night-free");
-    }
+    // Colores correspondientes
+    // Libre: Amarillo para Mañana, Gris Claro para Noche
+    // Ocupado: Rojo para Feriados/Finde, Naranja para Días hábiles comunes
+    const dayColor = dayReserved ? (isSpecialDay ? "#dc2626" : "#ea580c") : "#fef08a";
+    const nightColor = nightReserved ? (isSpecialDay ? "#dc2626" : "#ea580c") : "#f3f4f6";
+
+    // Aplicar gradiente horizontal (arriba/abajo)
+    dayEl.style.background = `linear-gradient(to bottom, ${dayColor} 50%, ${nightColor} 50%)`;
 
     dayEl.innerHTML = `<span class="day-number">${day}</span>`;
 
@@ -1196,6 +1241,118 @@ async function initCarouselGallery() {
   }
 }
 
+// --- GALERÍA DE FOTOS DE SERVICIOS (LIGHTBOX) ---
+let currentGallerySlides = [];
+let currentGalleryIndex = 0;
+
+async function openServiceGallery(serviceId, serviceTitle) {
+  const modal = document.getElementById("gallery-modal");
+  const titleEl = document.getElementById("gallery-modal-title");
+  const track = document.getElementById("gallery-modal-track");
+  const indicators = document.getElementById("gallery-modal-indicators");
+  
+  if (!modal || !track || !indicators) return;
+  
+  titleEl.innerHTML = `<i class="fa-solid fa-images"></i> Galería: ${serviceTitle}`;
+  track.innerHTML = `
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-secondary); gap: 10px;">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size:24px; color:var(--accent);"></i>
+      <span style="font-size:12px;">Buscando fotos en la carpeta assets...</span>
+    </div>
+  `;
+  indicators.innerHTML = "";
+  modal.classList.remove("hidden");
+  
+  // Escanear dinámicamente hasta 8 fotos para este servicio (ej: pileta1.jpg, pileta2.jpg, etc.)
+  const maxPhotos = 8;
+  const scanPromises = [];
+  
+  for (let i = 1; i <= maxPhotos; i++) {
+    const url = `./assets/${serviceId}${i}.jpg`;
+    scanPromises.push(
+      new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(url);
+        img.onerror = () => resolve(null);
+        img.src = url;
+      })
+    );
+  }
+  
+  const results = await Promise.all(scanPromises);
+  const validUrls = results.filter(url => url !== null);
+  
+  // Si no se encuentra ninguna foto personalizada, usar una de las principales
+  if (validUrls.length === 0) {
+    let defaultUrl = "./assets/quincho-main.jpg";
+    if (serviceId === "pileta") defaultUrl = "./assets/quincho-pool.jpg";
+    if (serviceId === "equipamiento") defaultUrl = "./assets/quincho-pool.jpg";
+    validUrls.push(defaultUrl);
+  }
+  
+  track.innerHTML = "";
+  currentGallerySlides = validUrls;
+  currentGalleryIndex = 0;
+  
+  currentGallerySlides.forEach((url, index) => {
+    const slideEl = document.createElement("div");
+    slideEl.className = `gallery-slide ${index === 0 ? 'active' : ''}`;
+    slideEl.innerHTML = `<img src="${url}" alt="${serviceTitle} ${index + 1}">`;
+    track.appendChild(slideEl);
+    
+    const indEl = document.createElement("span");
+    indEl.className = `gallery-indicator ${index === 0 ? 'active' : ''}`;
+    indEl.addEventListener("click", () => setGallerySlide(index));
+    indicators.appendChild(indEl);
+  });
+}
+
+function closeServiceGallery() {
+  const modal = document.getElementById("gallery-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function closeServiceGalleryOnBackdrop(event) {
+  // Cerrar solo si se hace clic fuera del modal-content
+  if (event.target.id === "gallery-modal") {
+    closeServiceGallery();
+  }
+}
+
+function setGallerySlide(index) {
+  if (index < 0 || index >= currentGallerySlides.length) return;
+  currentGalleryIndex = index;
+  
+  const slides = document.querySelectorAll(".gallery-slide");
+  const indicators = document.querySelectorAll(".gallery-indicator");
+  
+  slides.forEach((slide, i) => {
+    slide.classList.toggle("active", i === index);
+  });
+  
+  indicators.forEach((indicator, i) => {
+    indicator.classList.toggle("active", i === index);
+  });
+}
+
+function nextGallerySlide() {
+  if (currentGallerySlides.length <= 1) return;
+  let nextIndex = currentGalleryIndex + 1;
+  if (nextIndex >= currentGallerySlides.length) {
+    nextIndex = 0;
+  }
+  setGallerySlide(nextIndex);
+}
+
+function prevGallerySlide() {
+  if (currentGallerySlides.length <= 1) return;
+  let prevIndex = currentGalleryIndex - 1;
+  if (prevIndex < 0) {
+    prevIndex = currentGallerySlides.length - 1;
+  }
+  setGallerySlide(prevIndex);
+}
+
 // Obtener feriados oficiales de Argentina desde la API o usar respaldo fijo
 async function fetchHolidays(year) {
   try {
@@ -1286,21 +1443,22 @@ async function renderAdminCalendar() {
       dayEl.setAttribute("title", holidayNames[dateStr] || "Feriado");
     }
 
+    // Determinar si es feriado o fin de semana
+    const isSpecialDay = isWeekend || isHoliday;
+
     // Buscar reservas para este día
     const dayBookings = bookings.filter(b => b.date === dateStr);
     const dayReserved = dayBookings.some(b => b.slot === "day");
     const nightReserved = dayBookings.some(b => b.slot === "night");
 
-    // Asignar clases de gradiente dividido en diagonal (135deg)
-    if (dayReserved && nightReserved) {
-      dayEl.classList.add("day-booked-night-booked");
-    } else if (dayReserved) {
-      dayEl.classList.add("day-booked-night-free");
-    } else if (nightReserved) {
-      dayEl.classList.add("day-free-night-booked");
-    } else {
-      dayEl.classList.add("day-free-night-free");
-    }
+    // Colores correspondientes
+    // Libre: Amarillo para Mañana, Gris Claro para Noche
+    // Ocupado: Rojo para Feriados/Finde, Naranja para Días hábiles comunes
+    const dayColor = dayReserved ? (isSpecialDay ? "#dc2626" : "#ea580c") : "#fef08a";
+    const nightColor = nightReserved ? (isSpecialDay ? "#dc2626" : "#ea580c") : "#f3f4f6";
+
+    // Aplicar gradiente horizontal (arriba/abajo)
+    dayEl.style.background = `linear-gradient(to bottom, ${dayColor} 50%, ${nightColor} 50%)`;
 
     dayEl.innerHTML = `<span class="day-number">${day}</span>`;
 
