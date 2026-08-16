@@ -767,6 +767,22 @@ function handleAdminLogout() {
 }
 
 // Listado de reservas en el panel admin (Filtrado por el mes/año en pantalla y desde hoy hacia adelante)
+function clearAdminDayFilter(event) {
+  if (event) event.preventDefault();
+  adminSelectedDateStr = null;
+  
+  // Quitar la selección del calendario
+  document.querySelectorAll("#admin-calendar-days-grid .calendar-day").forEach(el => el.classList.remove("selected"));
+  
+  // Ocultar formulario colapsable
+  const collapsible = document.getElementById("admin-booking-fields-collapsible");
+  if (collapsible) {
+    collapsible.classList.add("hidden");
+  }
+  
+  renderAdminBookings();
+}
+
 function renderAdminBookings() {
   const tbody = document.getElementById("admin-bookings-list");
   if (!tbody) return;
@@ -775,10 +791,6 @@ function renderAdminBookings() {
   const viewYear = currentDate.getFullYear();
   const viewMonth = currentDate.getMonth() + 1; // 1-indexed
 
-  // Obtener fecha de hoy en formato local YYYY-MM-DD
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
   const decryptedBookingsList = getDecryptedBookings();
   const filteredBookings = decryptedBookingsList.filter(b => {
     if (!b || !b.date || typeof b.date !== 'string') return false;
@@ -786,6 +798,11 @@ function renderAdminBookings() {
     
     // Primero, debe pertenecer al mes/año en pantalla
     if (y !== viewYear || m !== viewMonth) return false;
+    
+    // Segundo, si hay un día seleccionado, mostrar solo las reservas de ese día
+    if (adminSelectedDateStr) {
+      return b.date === adminSelectedDateStr;
+    }
     
     return true;
   });
@@ -796,11 +813,16 @@ function renderAdminBookings() {
     return a.slot.localeCompare(b.slot);
   });
 
-  // Actualizar el título de la tarjeta para indicar qué mes estamos viendo
+  // Actualizar el título de la tarjeta para indicar qué mes o día estamos viendo
   const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
   const listTitle = document.getElementById("admin-bookings-title");
   if (listTitle) {
-    listTitle.innerHTML = `<i class="fa-solid fa-list-check"></i> Reservas de ${monthNames[currentDate.getMonth()]} ${viewYear}`;
+    if (adminSelectedDateStr) {
+      const [y, m, d] = adminSelectedDateStr.split("-").map(Number);
+      listTitle.innerHTML = `<i class="fa-solid fa-list-check"></i> Reservas del ${d}/${m}/${y} <a href="#" onclick="clearAdminDayFilter(event)" style="font-size: 11px; margin-left: 10px; color: var(--accent); text-decoration: underline;">[Ver todo el mes]</a>`;
+    } else {
+      listTitle.innerHTML = `<i class="fa-solid fa-list-check"></i> Reservas de ${monthNames[currentDate.getMonth()]} ${viewYear}`;
+    }
   }
 
   if (sortedBookings.length === 0) {
@@ -1538,6 +1560,9 @@ async function renderAdminCalendar() {
       
       // Mostrar el formulario desplegable
       openAdminBookingForm(dateStr);
+
+      // Filtrar y renderizar las reservas de ese día en la lista de abajo
+      renderAdminBookings();
     });
 
     grid.appendChild(dayEl);
@@ -1743,5 +1768,6 @@ function cancelAdminEdit() {
   // Quitar la selección del calendario
   document.querySelectorAll("#admin-calendar-days-grid .calendar-day").forEach(el => el.classList.remove("selected"));
   adminSelectedDateStr = null;
+  renderAdminBookings();
 }
 
