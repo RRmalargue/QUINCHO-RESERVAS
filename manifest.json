@@ -1,6 +1,6 @@
 {
   "name": "Quincho Las 3R - Reservas",
-  "short_name": "Las 3R",
+  "short_name": "Quincho Las 3R",
   "description": "Aplicación de reservas y consultas para Quincho Las 3R.",
   "start_url": "./index.html",
   "display": "standalone",
