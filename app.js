@@ -242,6 +242,123 @@ document.addEventListener("DOMContentLoaded", () => {
   // Configurar gestos táctiles (swipe)
   setupSwipeGestures();
 
+  // --- INSTALACIÓN DE APLICACIÓN PWA ---
+  let deferredPrompt;
+  const installBtn = document.getElementById("install-pwa-btn");
+  const pwaBanner = document.getElementById("pwa-install-banner");
+  const iosBanner = document.getElementById("pwa-ios-banner");
+
+  // Detección de iOS (iPhone/iPad)
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+
+  // Si es iOS y no está ya instalada, mostrar el banner explicativo de Safari (si no fue descartado antes en esta sesión)
+  if (isIOS && !isStandalone && sessionStorage.getItem("pwa_dismissed") !== "true") {
+    if (iosBanner) {
+      iosBanner.classList.remove("hidden");
+    }
+  }
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    // Evitar el banner automático por defecto
+    e.preventDefault();
+    deferredPrompt = e;
+    
+    // Si no fue descartada en esta sesión, mostrar el banner flotante
+    if (sessionStorage.getItem("pwa_dismissed") !== "true") {
+      if (pwaBanner) pwaBanner.classList.remove("hidden");
+    }
+    // Mostrar siempre el botón en la barra superior (cabecera)
+    if (installBtn) installBtn.classList.remove("hidden");
+  });
+
+  // Manejadores del banner de Android/Chrome
+  const acceptBtn = document.getElementById("pwa-install-accept");
+  const declineBtn = document.getElementById("pwa-install-decline");
+
+  if (acceptBtn) {
+    acceptBtn.addEventListener("click", async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`Instalación de app seleccionada: ${outcome}`);
+        deferredPrompt = null;
+        if (pwaBanner) pwaBanner.classList.add("hidden");
+        if (installBtn) installBtn.classList.add("hidden");
+      }
+    });
+  }
+
+  if (declineBtn) {
+    declineBtn.addEventListener("click", () => {
+      if (pwaBanner) pwaBanner.classList.add("hidden");
+      // Evitar volver a molestar al usuario en la sesión actual
+      sessionStorage.setItem("pwa_dismissed", "true");
+    });
+  }
+
+  // Manejador del botón del header
+  if (installBtn) {
+    installBtn.addEventListener("click", async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`Instalación desde header: ${outcome}`);
+        deferredPrompt = null;
+        installBtn.classList.add("hidden");
+        if (pwaBanner) pwaBanner.classList.add("hidden");
+      }
+    });
+  }
+
+  // Manejador del botón del banner de iOS
+  const iosCloseBtn = document.getElementById("pwa-ios-close");
+  if (iosCloseBtn) {
+    iosCloseBtn.addEventListener("click", () => {
+      if (iosBanner) iosBanner.classList.add("hidden");
+      sessionStorage.setItem("pwa_dismissed", "true");
+    });
+  }
+
+  window.addEventListener("appinstalled", async () => {
+    console.log("Aplicación instalada con éxito en la pantalla de inicio.");
+    if (installBtn) installBtn.classList.add("hidden");
+    if (pwaBanner) pwaBanner.classList.add("hidden");
+
+    // Guardar evento de instalación en Supabase
+    const installRecord = {
+      date: "analytics",
+      slot: "install",
+      name: encrypt("Device Installed", SECRET_KEY),
+      phone: encrypt(isIOS ? "iOS/Safari" : "Android/Chrome", SECRET_KEY),
+      isEncrypted: true,
+      isGCal: false,
+      totalPrice: encrypt("0", SECRET_KEY),
+      deposit: encrypt("0", SECRET_KEY),
+      notes: encrypt(new Date().toISOString(), SECRET_KEY)
+    };
+    await saveBooking(installRecord);
+    localStorage.setItem("pwa_tracked", "true");
+  });
+
+  // Tracking de ejecuciones instaladas (Standalone / Modo App)
+  if (isStandalone && localStorage.getItem("pwa_tracked") !== "true") {
+    const installRecord = {
+      date: "analytics",
+      slot: "install",
+      name: encrypt("Standalone Launch", SECRET_KEY),
+      phone: encrypt(isIOS ? "iOS/Safari" : "Android/Chrome", SECRET_KEY),
+      isEncrypted: true,
+      isGCal: false,
+      totalPrice: encrypt("0", SECRET_KEY),
+      deposit: encrypt("0", SECRET_KEY),
+      notes: encrypt(new Date().toISOString(), SECRET_KEY)
+    };
+    saveBooking(installRecord).then(() => {
+      localStorage.setItem("pwa_tracked", "true");
+    });
+  }
+
   // Si el administrador ya estaba logueado previamente, mostrar el botón de navegación
   if (localStorage.getItem("admin_logged") === "true") {
     const adminNav = document.getElementById("nav-admin-section");
@@ -321,6 +438,7 @@ document.addEventListener("DOMContentLoaded", () => {
 async function initApp() {
   await initCarouselGallery();
   await loadBookings();
+  loadWifiConfig(); // Cargar datos del WiFi
   loadExpenses(); // Cargar Gastos
   renderCalendar();
   renderAdminCalendar(); // Cargar Calendario Admin
@@ -752,11 +870,21 @@ function handleAdminLogin(event) {
 function showAdminPanel() {
   document.getElementById("admin-login-box").classList.add("hidden");
   document.getElementById("admin-panel").classList.remove("hidden");
+  
+  // Calcular y mostrar número de instalaciones de la app
+  updateInstallationsCountDisplay();
+
   renderAdminBookings();
   renderAdminCalendar(); // Generar calendario admin al entrar
   renderExpenses();
   populateFinanceYears();
   updateFinanceSummary();
+}
+
+function updateInstallationsCountDisplay() {
+  const count = bookings.filter(b => b.date === "analytics" && b.slot === "install").length;
+  const numEl = document.getElementById("admin-install-number");
+  if (numEl) numEl.innerText = count;
 }
 
 // Logout
@@ -1807,6 +1935,97 @@ function irAlQuincho(event) {
   } else {
     // Computadora u otros dispositivos: abrir enlace web normal
     window.open(webUrl, '_blank');
+  }
+}
+
+// --- SISTEMA DE CONFIGURACIÓN DE WIFI ---
+let wifiSSID = "";
+let wifiPass = "";
+
+function loadWifiConfig() {
+  const wifiRecord = bookings.find(b => b.date === "config" && b.slot === "wifi");
+  if (wifiRecord) {
+    const key = SECRET_KEY;
+    wifiSSID = decrypt(wifiRecord.name, key);
+    wifiPass = decrypt(wifiRecord.phone, key);
+    
+    const inputSSID = document.getElementById("admin-wifi-ssid");
+    const inputPass = document.getElementById("admin-wifi-pass");
+    if (inputSSID) inputSSID.value = wifiSSID;
+    if (inputPass) inputPass.value = wifiPass;
+  } else {
+    wifiSSID = "";
+    wifiPass = "";
+  }
+}
+
+async function handleWifiSave(event) {
+  if (event) event.preventDefault();
+  const ssid = document.getElementById("admin-wifi-ssid").value.trim();
+  const pass = document.getElementById("admin-wifi-pass").value.trim();
+
+  const key = SECRET_KEY;
+  const newWifiRecord = {
+    date: "config",
+    slot: "wifi",
+    name: encrypt(ssid, key),
+    phone: encrypt(pass, key),
+    isEncrypted: true,
+    isGCal: false,
+    totalPrice: encrypt("0", key),
+    deposit: encrypt("0", key),
+    notes: encrypt("", key)
+  };
+
+  // Remover configuración previa de WiFi localmente
+  bookings = bookings.filter(b => !(b.date === "config" && b.slot === "wifi"));
+  
+  // Guardar reserva (Supabase / LocalStorage)
+  await saveBooking(newWifiRecord);
+  
+  wifiSSID = ssid;
+  wifiPass = pass;
+  
+  alert("Configuración de WiFi guardada y sincronizada correctamente.");
+}
+
+function openWifiModal() {
+  const wifiRecord = bookings.find(b => b.date === "config" && b.slot === "wifi");
+  const infoBox = document.getElementById("wifi-info-box");
+  const noConfigBox = document.getElementById("wifi-no-config-box");
+  const modal = document.getElementById("wifi-modal");
+  
+  if (wifiRecord) {
+    const key = SECRET_KEY;
+    const ssid = decrypt(wifiRecord.name, key);
+    const pass = decrypt(wifiRecord.phone, key);
+    
+    document.getElementById("wifi-display-ssid").innerText = ssid;
+    document.getElementById("wifi-display-pass").innerText = pass;
+    
+    // Generar código QR de autoconexión WiFi usando la API de QR Server
+    // Formato: WIFI:S:<SSID>;T:WPA;P:<PASSWORD>;;
+    const qrData = encodeURIComponent(`WIFI:S:${ssid};T:WPA;P:${pass};;`);
+    document.getElementById("wifi-qr-img").src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrData}`;
+    
+    if (infoBox) infoBox.classList.remove("hidden");
+    if (noConfigBox) noConfigBox.classList.add("hidden");
+  } else {
+    if (infoBox) infoBox.classList.add("hidden");
+    if (noConfigBox) noConfigBox.classList.remove("hidden");
+  }
+  
+  if (modal) modal.classList.remove("hidden");
+}
+
+function closeWifiModal() {
+  const modal = document.getElementById("wifi-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function closeWifiModalOnBackdrop(event) {
+  if (event.target.id === "wifi-modal") {
+    closeWifiModal();
   }
 }
 

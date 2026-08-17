@@ -36,9 +36,14 @@
         <p>Quncho-Salon-Pileta</p>
       </div>
     </div>
-    <div class="status-indicator">
-      <span class="status-dot"></span>
-      <span class="status-label">Online</span>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <button id="install-pwa-btn" class="btn hidden" style="padding: 6px 12px; font-size: 11px; border-radius: 8px; margin: 0; background: linear-gradient(135deg, #10b981, #059669); color: white; display: inline-flex; height: auto;">
+        <i class="fa-solid fa-download"></i> Instalar App
+      </button>
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        <span class="status-label">Online</span>
+      </div>
     </div>
   </header>
 
@@ -158,6 +163,19 @@
           <a href="./assets/normas.jpg" target="_blank" class="btn btn-primary" style="margin: 0; width: 100%; max-width: 250px;">
             <i class="fa-solid fa-image"></i> Leer Reglamento
           </a>
+        </div>
+      </div>
+
+      <!-- WiFi del Quincho -->
+      <div class="card" style="margin-top: 20px; text-align: center;">
+        <h3 style="color: var(--accent); margin-bottom: 8px;"><i class="fa-solid fa-wifi"></i> WiFi del Quincho</h3>
+        <p class="text-secondary text-sm" style="margin-bottom: 16px;">
+          ¿Estás en el quincho? Toca el botón de abajo para ver la contraseña del WiFi o conectarte de forma automática escaneando el código QR.
+        </p>
+        <div style="text-align: center;">
+          <button onclick="openWifiModal()" class="btn btn-outline-primary" style="margin: 0; width: 100%; max-width: 250px;">
+            <i class="fa-solid fa-key"></i> Ver Clave de WiFi
+          </button>
         </div>
       </div>
 
@@ -337,7 +355,7 @@
       <!-- Panel Admin (Oculto hasta Login) -->
       <div id="admin-panel" class="admin-panel hidden">
         <div class="admin-header-row">
-          <h2>Panel de Administración</h2>
+          <h2>Panel de Administración <span id="admin-install-count-badge" class="badge badge-success" style="font-size: 12px; font-weight: normal; margin-left: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; vertical-align: middle; border-radius: 6px;"><i class="fa-solid fa-mobile-screen-button"></i> <span id="admin-install-number">0</span> Instalaciones</span></h2>
           <button class="btn btn-sm btn-outline-danger" onclick="handleAdminLogout()">
             <i class="fa-solid fa-arrow-right-from-bracket"></i> Salir
           </button>
@@ -528,6 +546,25 @@
             </form>
           </div>
 
+          <!-- Configuración de WiFi -->
+          <div class="card" style="margin-bottom: 16px;">
+            <h3><i class="fa-solid fa-wifi"></i> Configuración de WiFi</h3>
+            <p class="text-secondary text-sm" style="margin-bottom: 12px;">
+              Define los datos del WiFi para tus clientes. Se sincronizarán en la nube automáticamente.
+            </p>
+            <form id="admin-wifi-form" onsubmit="handleWifiSave(event)" style="display: flex; flex-direction: column; gap: 10px;">
+              <div class="form-group" style="margin: 0;">
+                <label for="admin-wifi-ssid" style="margin-bottom: 4px;">Nombre de Red (SSID)</label>
+                <input type="text" id="admin-wifi-ssid" required placeholder="Ej: Quincho_Las_3R" class="form-control">
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label for="admin-wifi-pass" style="margin-bottom: 4px;">Contraseña</label>
+                <input type="text" id="admin-wifi-pass" required placeholder="Ej: clave1234" class="form-control">
+              </div>
+              <button type="submit" class="btn btn-primary btn-block" style="margin-top: 5px;"><i class="fa-solid fa-floppy-disk"></i> Guardar WiFi</button>
+            </form>
+          </div>
+
           <!-- Gestión de Sincronización -->
           <div class="card">
             <h3><i class="fa-solid fa-database"></i> Gestión de Sincronización</h3>
@@ -638,6 +675,59 @@
       
       <div class="gallery-indicators" id="gallery-modal-indicators">
         <!-- Indicadores de foto -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Banner de Instalación PWA para Android/Chrome -->
+  <div id="pwa-install-banner" class="pwa-banner hidden">
+    <div class="pwa-banner-content">
+      <img src="./assets/logo.svg" alt="Quincho Las 3R Logo" class="pwa-banner-logo">
+      <div class="pwa-banner-text">
+        <h4 style="margin:0; font-size:14px; font-weight:600; color:var(--text-primary);">Instalar App Las 3R</h4>
+        <p style="margin:0; font-size:11px; color:var(--text-secondary); line-height:1.3;">Instala la aplicación en tu pantalla de inicio para reservar más rápido.</p>
+      </div>
+    </div>
+    <div class="pwa-banner-actions" style="display: flex; gap: 8px; margin-top: 8px;">
+      <button id="pwa-install-accept" class="btn btn-success btn-sm" style="flex: 1; padding: 8px; font-size: 12px; margin: 0;">Instalar</button>
+      <button id="pwa-install-decline" class="btn btn-outline-danger btn-sm" style="flex: 1; padding: 8px; font-size: 12px; margin: 0;">Más tarde</button>
+    </div>
+  </div>
+
+  <!-- Banner Informativo PWA para iOS/Safari (iPhone) -->
+  <div id="pwa-ios-banner" class="pwa-banner hidden">
+    <div class="pwa-banner-content">
+      <img src="./assets/logo.svg" alt="Quincho Las 3R Logo" class="pwa-banner-logo">
+      <div class="pwa-banner-text">
+        <h4 style="margin:0; font-size:14px; font-weight:600; color:var(--text-primary);">Instalar App en tu iPhone</h4>
+        <p style="margin:0; font-size:11px; color:var(--text-secondary); line-height:1.3;">Toca el botón <strong>Compartir</strong> abajo <i class="fa-solid fa-arrow-up-from-bracket"></i> y selecciona <strong>"Agregar a inicio"</strong> <i class="fa-regular fa-square-plus"></i>.</p>
+      </div>
+    </div>
+    <div class="pwa-banner-actions" style="margin-top: 8px;">
+      <button id="pwa-ios-close" class="btn btn-outline-primary btn-sm btn-block" style="width: 100%; padding: 8px; font-size: 12px; margin: 0;">Entendido</button>
+    </div>
+  </div>
+
+  <!-- Modal de WiFi del Quincho -->
+  <div id="wifi-modal" class="modal-backdrop hidden" onclick="closeWifiModalOnBackdrop(event)">
+    <div class="gallery-modal-content card" style="max-width: 380px; text-align: center; padding: 24px; position: relative;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
+        <h3 style="margin: 0; color: var(--accent); font-size: 18px;"><i class="fa-solid fa-wifi"></i> WiFi de Las 3R</h3>
+        <button class="close-btn" onclick="closeWifiModal()" style="background: transparent; border: none; color: var(--text-primary); font-size: 20px; cursor: pointer; padding: 0;"><i class="fa-solid fa-times"></i></button>
+      </div>
+      
+      <div id="wifi-info-box" style="display: flex; flex-direction: column; align-items: center;">
+        <p style="font-size: 14px; margin-bottom: 8px; color: var(--text-secondary);">📶 Red: <strong id="wifi-display-ssid" style="color: var(--text-primary); font-size: 15px;">...</strong></p>
+        <p style="font-size: 14px; margin-bottom: 18px; color: var(--text-secondary);">🔑 Clave: <strong id="wifi-display-pass" style="color: var(--text-primary); font-size: 15px;">...</strong></p>
+        
+        <div style="background: white; padding: 12px; border-radius: 12px; display: inline-block; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+          <img id="wifi-qr-img" src="" alt="WiFi QR Code" style="display: block; width: 160px; height: 160px; margin: 0 auto; background: #fff;">
+        </div>
+        <p class="text-secondary" style="font-size: 11px; line-height: 1.4; margin: 0;">Escanea el código QR con la cámara de tu celular para conectarte automáticamente sin tener que escribir la contraseña.</p>
+      </div>
+      
+      <div id="wifi-no-config-box" class="hidden" style="padding: 20px 0;">
+        <p class="text-secondary" style="font-size: 13px;">El WiFi aún no ha sido configurado en el panel de administración.</p>
       </div>
     </div>
   </div>

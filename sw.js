@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quincho-cache-v5';
+const CACHE_NAME = 'quincho-cache-v9';
 const ASSETS = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const ASSETS = [
   './app.js',
   './manifest.json',
   './assets/logo.svg',
+  './assets/logo.jpg',
   './assets/quincho-main.jpg',
   './assets/quincho-pool.jpg',
   './assets/r_reflejadas_canva.svg',
