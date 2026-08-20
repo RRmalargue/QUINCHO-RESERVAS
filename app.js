@@ -1851,6 +1851,9 @@ function editBookingAdmin(date, slot) {
   const cancelBtn = document.getElementById("admin-cancel-edit-btn");
   if (cancelBtn) cancelBtn.classList.remove("hidden");
 
+  const deleteEditBtn = document.getElementById("admin-delete-edit-btn");
+  if (deleteEditBtn) deleteEditBtn.classList.remove("hidden");
+
   // Mostrar el formulario desplegable
   const collapsible = document.getElementById("admin-booking-fields-collapsible");
   if (collapsible) {
@@ -1872,6 +1875,9 @@ function cancelAdminEdit() {
 
   const cancelBtn = document.getElementById("admin-cancel-edit-btn");
   if (cancelBtn) cancelBtn.classList.add("hidden");
+
+  const deleteEditBtn = document.getElementById("admin-delete-edit-btn");
+  if (deleteEditBtn) deleteEditBtn.classList.add("hidden");
 
   // Limpiar campos
   document.getElementById("admin-name").value = "";
@@ -1897,6 +1903,25 @@ function cancelAdminEdit() {
   document.querySelectorAll("#admin-calendar-days-grid .calendar-day").forEach(el => el.classList.remove("selected"));
   adminSelectedDateStr = null;
   renderAdminBookings();
+}
+
+// Eliminar la reserva que se está editando actualmente
+async function deleteCurrentEditBooking() {
+  if (!editOriginalDate || !editOriginalSlot) return;
+  
+  const formattedDate = editOriginalDate.split("-").reverse().join("/");
+  const slotLabel = editOriginalSlot === 'day' ? 'Mañana' : 'Noche';
+  
+  if (confirm(`¿Seguro que deseas eliminar/cancelar la reserva del ${formattedDate} (${slotLabel})?`)) {
+    await deleteBooking(editOriginalDate, editOriginalSlot);
+    cancelAdminEdit();
+    renderAdminBookings();
+    renderAdminCalendar();
+    renderCalendar();
+    updateFinanceSummary();
+    populateFinanceYears();
+    alert("Reserva cancelada correctamente.");
+  }
 }
 
 // Abrir navegación GPS al quincho (App nativa o navegador web)
