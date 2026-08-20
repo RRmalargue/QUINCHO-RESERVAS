@@ -1239,11 +1239,32 @@ async function handleAdminManualBooking(event) {
     await deleteBooking(editOriginalDate, editOriginalSlot);
     await saveBooking(newBooking);
     cancelAdminEdit();
-    alert("Reserva modificada correctamente.");
+    alert("Reserva modificada correctamente. Abriendo Google Calendar para guardar la alerta...");
   } else {
     await saveBooking(newBooking);
-    alert("Reserva manual agregada correctamente.");
+    alert("Reserva manual agregada correctamente. Abriendo Google Calendar para guardar la alerta...");
   }
+
+  // Generar y abrir automáticamente Google Calendar
+  const dateClean = date.replace(/-/g, '');
+  let startGCal = "";
+  let endGCal = "";
+  if (slot === "day") {
+    startGCal = `${dateClean}T100000`;
+    endGCal = `${dateClean}T190000`;
+  } else {
+    startGCal = `${dateClean}T203000`;
+    const nextDay = new Date(date + "T12:00:00");
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextDayClean = `${nextDay.getFullYear()}${String(nextDay.getMonth() + 1).padStart(2, '0')}${String(nextDay.getDate()).padStart(2, '0')}`;
+    endGCal = `${nextDayClean}T043000`;
+  }
+  const gcalTitle = encodeURIComponent(`Reserva: ${name}`);
+  const gcalDetails = encodeURIComponent(`Monto Total: $${totalPriceVal}\nSeña: $${depositVal}\nContacto: ${phone || ''}\nNotas: ${notesVal || ''}`);
+  const gcalLink = `https://www.google.com/calendar/render?action=TEMPLATE&text=${gcalTitle}&dates=${startGCal}/${endGCal}&details=${gcalDetails}`;
+  
+  // Abrir pestaña para guardar en Google Calendar
+  window.open(gcalLink, "_blank");
 
   // Limpiar campos y refrescar
   document.getElementById("admin-name").value = "";

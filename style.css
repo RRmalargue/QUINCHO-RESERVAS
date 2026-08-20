@@ -658,8 +658,22 @@ h1, h2, h3, h4 {
 .calendar-day.day-free {
   border-radius: 50% !important;
 }
+/* Animación de baliza/faro para los días alquilados */
+@keyframes beacon-glow {
+  0%, 100% {
+    border-color: rgba(220, 38, 38, 0.4);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15), 0 0 4px rgba(220, 38, 38, 0.2);
+  }
+  50% {
+    border-color: rgba(220, 38, 38, 1);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15), 0 0 10px rgba(220, 38, 38, 0.5);
+  }
+}
+
 .calendar-day.day-rented {
   border-radius: 6px !important;
+  border: 2px dashed #dc2626 !important;
+  animation: beacon-glow 2.5s infinite ease-in-out;
 }
 
 .calendar-day.selected {
