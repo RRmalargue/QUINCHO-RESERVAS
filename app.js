@@ -736,8 +736,8 @@ async function renderCalendar() {
     const dayReserved = dayBookings.some(b => b.slot === "day");
     const nightReserved = dayBookings.some(b => b.slot === "night");
 
-    // Aplicar gradiente unificado en diagonal usando la paleta de colores premium
-    dayEl.style.background = getDayBackgroundStyle(dayReserved, nightReserved, isSpecialDay);
+    // Remover fondo del contenedor principal (usamos las capas absolutas hijas)
+    dayEl.style.background = "transparent";
 
     // Asignar clase de forma según si está alquilado (cuadrado) o libre (redondo)
     if (dayReserved || nightReserved) {
@@ -748,7 +748,18 @@ async function renderCalendar() {
       dayEl.classList.remove("day-rented");
     }
 
-    dayEl.innerHTML = `<span class="day-number">${day}</span>`;
+    // Determinar colores y clases de animación individuales para cada mitad
+    const morningColor = dayReserved ? "#fca5a5" : (isSpecialDay ? "#fde68a" : "#a7f3d0");
+    const nightColor = nightReserved ? "#fca5a5" : (isSpecialDay ? "#fed7aa" : "#bae6fd");
+    
+    const morningClass = dayReserved ? "slot-morning slot-rented" : "slot-morning";
+    const nightClass = nightReserved ? "slot-night slot-rented" : "slot-night";
+
+    dayEl.innerHTML = `
+      <div class="${morningClass}" style="background-color: ${morningColor};"></div>
+      <div class="${nightClass}" style="background-color: ${nightColor};"></div>
+      <span class="day-number">${day}</span>
+    `;
 
     // Si es el día seleccionado actualmente
     if (selectedDateStr === dateStr) {
@@ -1858,8 +1869,8 @@ async function renderAdminCalendar() {
     const dayReserved = dayBookings.some(b => b.slot === "day");
     const nightReserved = dayBookings.some(b => b.slot === "night");
 
-    // Aplicar gradiente unificado en diagonal usando la paleta de colores premium
-    dayEl.style.background = getDayBackgroundStyle(dayReserved, nightReserved, isSpecialDay);
+    // Remover fondo del contenedor principal (usamos las capas absolutas hijas)
+    dayEl.style.background = "transparent";
 
     // Asignar clase de forma según si está alquilado (cuadrado) o libre (redondo)
     if (dayReserved || nightReserved) {
@@ -1870,7 +1881,18 @@ async function renderAdminCalendar() {
       dayEl.classList.remove("day-rented");
     }
 
-    dayEl.innerHTML = `<span class="day-number">${day}</span>`;
+    // Determinar colores y clases de animación individuales para cada mitad
+    const morningColor = dayReserved ? "#fca5a5" : (isSpecialDay ? "#fde68a" : "#a7f3d0");
+    const nightColor = nightReserved ? "#fca5a5" : (isSpecialDay ? "#fed7aa" : "#bae6fd");
+    
+    const morningClass = dayReserved ? "slot-morning slot-rented" : "slot-morning";
+    const nightClass = nightReserved ? "slot-night slot-rented" : "slot-night";
+
+    dayEl.innerHTML = `
+      <div class="${morningClass}" style="background-color: ${morningColor};"></div>
+      <div class="${nightClass}" style="background-color: ${nightColor};"></div>
+      <span class="day-number">${day}</span>
+    `;
 
     // Si es el día seleccionado actualmente en el panel admin
     if (adminSelectedDateStr === dateStr) {
