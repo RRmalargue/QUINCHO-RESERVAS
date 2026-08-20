@@ -636,15 +636,22 @@ h1, h2, h3, h4 {
   transition: var(--transition);
 }
 
-/* Fines de semana y feriados: número destacado en rojo tenue dentro del cristal */
-.calendar-day.weekend .day-number,
-.calendar-day.holiday .day-number {
+/* Fines de semana: número destacado en rojo tenue */
+.calendar-day.weekend .day-number {
   color: #f87171;
   font-weight: 800;
 }
 
+/* Feriados: número en fondo rojo y borde dashed rojo brillante para que no se confundan */
 .calendar-day.holiday {
-  border-color: rgba(248, 113, 113, 0.3);
+  border: 2px dashed #ef4444 !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+.calendar-day.holiday .day-number {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #ef4444 !important;
+  font-weight: 800;
 }
 
 .calendar-day.selected {
@@ -1358,4 +1365,71 @@ h1, h2, h3, h4 {
   width: 100% !important;
   height: 100% !important;
   min-height: 280px;
+}
+
+/* Banner de Instalación PWA Premium Flotante */
+.pwa-banner {
+  position: fixed;
+  bottom: 85px; /* Encima de la barra de navegación móvil */
+  left: 16px;
+  right: 16px;
+  background: rgba(22, 22, 28, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: pwaSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pwaSlideUp {
+  from { transform: translateY(120px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.pwa-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pwa-banner-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--bg-secondary);
+}
+
+.pwa-banner-text {
+  flex: 1;
+}
+
+.pwa-banner-text h4 {
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.pwa-banner-text p {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+/* Adaptabilidad a computadoras de escritorio (desktop float card) */
+@media (min-width: 768px) {
+  .pwa-banner {
+    width: 360px;
+    left: auto;
+    right: 24px;
+    bottom: 24px;
+  }
 }

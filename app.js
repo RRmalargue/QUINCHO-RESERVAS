@@ -477,6 +477,11 @@ async function initApp() {
   // Cargar campos de Supabase si existen
   if (supabaseUrl) document.getElementById("sb-url").value = supabaseUrl;
   if (supabaseKey) document.getElementById("sb-key").value = supabaseKey;
+
+  // Solicitar permiso para notificaciones locales
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
 }
 
 // Cargar reservas desde Supabase, bookings.json o localStorage
@@ -650,6 +655,29 @@ function setCarouselSlide(index) {
   indicators[currentCarouselIndex].classList.add("active");
 }
 
+// Retorna el estilo de fondo degradado dividido en diagonal según la disponibilidad de turnos y tipo de día
+function getDayBackgroundStyle(dayReserved, nightReserved, isSpecialDay) {
+  // Colores pastel suaves para los turnos libres y ocupados
+  let morningColor = "";
+  let nightColor = "";
+
+  // 1. Color para el turno Mañana (izquierda/arriba)
+  if (dayReserved) {
+    morningColor = "#fca5a5"; // Rojo pastel (Ocupado)
+  } else {
+    morningColor = isSpecialDay ? "#fde68a" : "#a7f3d0"; // Amarillo (Finde/Feriado libre) o Verde menta (Día hábil libre)
+  }
+
+  // 2. Color para el turno Noche (derecha/abajo)
+  if (nightReserved) {
+    nightColor = "#fca5a5"; // Rojo pastel (Ocupado)
+  } else {
+    nightColor = isSpecialDay ? "#fed7aa" : "#bae6fd"; // Naranja (Finde/Feriado libre) o Celeste (Día hábil libre)
+  }
+
+  return `linear-gradient(135deg, ${morningColor} 50%, ${nightColor} 50%)`;
+}
+
 // --- GENERACIÓN DEL CALENDARIO ---
 async function renderCalendar() {
   const year = currentDate.getFullYear();
@@ -708,14 +736,8 @@ async function renderCalendar() {
     const dayReserved = dayBookings.some(b => b.slot === "day");
     const nightReserved = dayBookings.some(b => b.slot === "night");
 
-    // Colores correspondientes
-    // Libre: Amarillo para Mañana, Gris Claro para Noche
-    // Ocupado: Rojo para Feriados/Finde, Naranja para Días hábiles comunes
-    const dayColor = dayReserved ? (isSpecialDay ? "#dc2626" : "#ea580c") : "#fef08a";
-    const nightColor = nightReserved ? (isSpecialDay ? "#dc2626" : "#ea580c") : "#f3f4f6";
-
-    // Aplicar gradiente horizontal (arriba/abajo)
-    dayEl.style.background = `linear-gradient(to bottom, ${dayColor} 50%, ${nightColor} 50%)`;
+    // Aplicar gradiente unificado en diagonal usando la paleta de colores premium
+    dayEl.style.background = getDayBackgroundStyle(dayReserved, nightReserved, isSpecialDay);
 
     dayEl.innerHTML = `<span class="day-number">${day}</span>`;
 
@@ -874,11 +896,132 @@ function showAdminPanel() {
   // Calcular y mostrar número de instalaciones de la app
   updateInstallationsCountDisplay();
 
+  // Buscar y renderizar recordatorios de reservas próximas
+  checkUpcomingBookingsAlerts();
+
   renderAdminBookings();
   renderAdminCalendar(); // Generar calendario admin al entrar
   renderExpenses();
   populateFinanceYears();
   updateFinanceSummary();
+}
+
+function checkUpcomingBookingsAlerts() {
+  const alertContainer = document.getElementById("admin-upcoming-alerts");
+  if (!alertContainer) return;
+  alertContainer.innerHTML = "";
+  alertContainer.classList.add("hidden");
+
+  const key = SECRET_KEY;
+  const decryptedBookingsList = getDecryptedBookings();
+  
+  // Obtener fecha y hora actuales del cliente
+  const now = new Date();
+  
+  // Encontrar reservas que inicien en las próximas 24 horas
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+
+  const upcoming = decryptedBookingsList.filter(b => {
+    if (!b || !b.date || typeof b.date !== 'string') return false;
+    // Ignorar configs o analytics
+    if (b.date === "config" || b.date === "analytics") return false;
+    
+    // Si la reserva es hoy o mañana
+    if (b.date !== todayStr && b.date !== tomorrowStr) return false;
+
+    // Calcular cuántas horas faltan
+    // Turno mañana empieza a las 10:00. Turno noche a las 20:30.
+    const [y, m, d] = b.date.split("-").map(Number);
+    const slotHour = b.slot === "day" ? 10 : 20.5;
+    const slotMin = b.slot === "day" ? 0 : 30;
+    
+    const bookingDateTime = new Date(y, m - 1, d, slotHour, slotMin);
+    const msDiff = bookingDateTime - now;
+    const hoursDiff = msDiff / (1000 * 60 * 60);
+
+    // Filtrar aquellas que ocurran en las próximas 24 horas (futuras)
+    // o que ya iniciaron hace menos de 4 horas
+    return hoursDiff >= -4 && hoursDiff <= 24;
+  });
+
+  if (upcoming.length === 0) return;
+
+  // Generar HTML para cada alerta
+  upcoming.forEach(b => {
+    const formattedDate = b.date.split("-").reverse().join("/");
+    const slotLabel = b.slot === "day" ? "Mañana (10:00 hs)" : "Noche (20:30 hs)";
+    
+    // Calcular horas restantes
+    const [y, m, d] = b.date.split("-").map(Number);
+    const slotHour = b.slot === "day" ? 10 : 20.5;
+    const slotMin = b.slot === "day" ? 0 : 30;
+    const bookingDateTime = new Date(y, m - 1, d, slotHour, slotMin);
+    const hoursLeft = Math.round((bookingDateTime - now) / (1000 * 60 * 60));
+
+    // Disparar una notificación nativa del sistema en el celular si hay permisos y no se notificó en esta sesión
+    const notifySessionKey = `notified_${b.date}_${b.slot}`;
+    if ("Notification" in window && Notification.permission === "granted" && !sessionStorage.getItem(notifySessionKey)) {
+      try {
+        new Notification(`Reserva próxima en Las 3R`, {
+          body: `El cliente ${b.name} ingresa en el turno ${slotLabel} (${timeLabel}).`,
+          icon: "./assets/logo.jpg",
+          badge: "./assets/logo.jpg"
+        });
+        sessionStorage.setItem(notifySessionKey, "true");
+      } catch (err) {
+        console.warn("Fallo al disparar notificación nativa:", err);
+      }
+    }
+
+    // Determinar etiqueta de tiempo restante
+    let timeLabel = "";
+    if (hoursLeft < 0) {
+      timeLabel = "Inició hace instantes";
+    } else if (hoursLeft === 0) {
+      timeLabel = "¡Inicia ahora!";
+    } else {
+      timeLabel = `Inicia en ${hoursLeft} hs`;
+    }
+
+    // Normalizar teléfono para WhatsApp
+    let cleanPhone = b.phone ? b.phone.replace(/\D/g, '') : "";
+    if (cleanPhone.length === 10) {
+      cleanPhone = "549" + cleanPhone;
+    } else if (cleanPhone.length === 11 && cleanPhone.startsWith("0")) {
+      cleanPhone = "549" + cleanPhone.substring(1);
+    } else if (cleanPhone.length === 11 && cleanPhone.startsWith("9")) {
+      cleanPhone = "54" + cleanPhone;
+    } else if (cleanPhone.length === 12 && cleanPhone.startsWith("54")) {
+      cleanPhone = "549" + cleanPhone.substring(2);
+    }
+
+    const reminderText = `¡Hola ${b.name}! Te recordamos tu reserva en Quincho Las 3R para hoy/mañana (${formattedDate}) en el turno ${b.slot === 'day' ? 'Mañana' : 'Noche'}. ¡Te esperamos! 🏡`;
+    const waReminderLink = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(reminderText)}` : "#";
+
+    const alertCard = document.createElement("div");
+    alertCard.className = "card";
+    alertCard.style = "background: rgba(239, 68, 68, 0.08); border: 1px solid var(--danger); display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px;";
+    alertCard.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
+        <div style="flex: 1; min-width: 200px;">
+          <h4 style="color: var(--danger); font-size: 14px; margin-bottom: 4px; display: inline-flex; align-items: center; gap: 6px;"><i class="fa-solid fa-bell-exclamation fa-shake"></i> Recordatorio de Reserva (${timeLabel})</h4>
+          <p style="font-size: 13px; margin: 0; color: var(--text-primary);">Cliente: <strong>${b.name}</strong> | Fecha: <strong>${formattedDate}</strong> | Turno: <strong>${slotLabel}</strong></p>
+        </div>
+        ${cleanPhone ? `
+          <a href="${waReminderLink}" target="_blank" class="btn btn-sm btn-success" style="margin: 0; padding: 6px 12px; font-size: 11px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; text-decoration: none; border-radius: 6px;">
+            <i class="fa-brands fa-whatsapp"></i> Recordar 12hs
+          </a>
+        ` : `<span class="badge badge-secondary" style="font-size:10px;">Sin Teléfono</span>`}
+      </div>
+    `;
+    alertContainer.appendChild(alertCard);
+  });
+
+  alertContainer.classList.remove("hidden");
 }
 
 function updateInstallationsCountDisplay() {
@@ -988,6 +1131,24 @@ function renderAdminBookings() {
     const notesDiv = b.notes ? `<div class="text-muted text-xs" style="margin-top: 4px; font-style: italic;"><i class="fa-regular fa-comment-dots"></i> ${b.notes}</div>` : "";
     const clientName = `${b.name}${waLink}${notesDiv}`;
 
+    // Generar link de Google Calendar para sincronizar y alarma nativa en celular
+    const dateClean = b.date.replace(/-/g, ''); // YYYYMMDD
+    let startGCal = "";
+    let endGCal = "";
+    if (b.slot === "day") {
+      startGCal = `${dateClean}T100000`;
+      endGCal = `${dateClean}T190000`;
+    } else {
+      startGCal = `${dateClean}T203000`;
+      const nextDay = new Date(b.date + "T12:00:00");
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDayClean = `${nextDay.getFullYear()}${String(nextDay.getMonth() + 1).padStart(2, '0')}${String(nextDay.getDate()).padStart(2, '0')}`;
+      endGCal = `${nextDayClean}T043000`;
+    }
+    const gcalTitle = encodeURIComponent(`Reserva: ${b.name}`);
+    const gcalDetails = encodeURIComponent(`Monto Total: $${b.totalPrice}\nSeña: $${b.deposit}\nContacto: ${b.phone || ''}\nNotas: ${b.notes || ''}`);
+    const gcalLink = `https://www.google.com/calendar/render?action=TEMPLATE&text=${gcalTitle}&dates=${startGCal}/${endGCal}&details=${gcalDetails}`;
+
     tr.innerHTML = `
       <td><strong>${formattedDate}</strong></td>
       <td>${slotLabel}</td>
@@ -997,6 +1158,9 @@ function renderAdminBookings() {
       <td><span style="font-weight: 600; color: ${b.totalPrice - b.deposit > 0 ? 'var(--warning)' : 'var(--success)'}">${balance}</span></td>
       <td>
         <div class="btn-group-row">
+          <a href="${gcalLink}" target="_blank" class="btn btn-sm btn-outline-success" title="Agregar a Google Calendar (Alarma en Celular)" style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; text-decoration: none;">
+            <i class="fa-solid fa-calendar-plus"></i>
+          </a>
           <button class="btn btn-sm btn-outline-primary" onclick="editBookingAdmin('${b.date}', '${b.slot}')" title="Editar Reserva">
             <i class="fa-regular fa-pen-to-square"></i>
           </button>
@@ -1664,14 +1828,8 @@ async function renderAdminCalendar() {
     const dayReserved = dayBookings.some(b => b.slot === "day");
     const nightReserved = dayBookings.some(b => b.slot === "night");
 
-    // Colores correspondientes
-    // Libre: Amarillo para Mañana, Gris Claro para Noche
-    // Ocupado: Rojo para Feriados/Finde, Naranja para Días hábiles comunes
-    const dayColor = dayReserved ? (isSpecialDay ? "#dc2626" : "#ea580c") : "#fef08a";
-    const nightColor = nightReserved ? (isSpecialDay ? "#dc2626" : "#ea580c") : "#f3f4f6";
-
-    // Aplicar gradiente horizontal (arriba/abajo)
-    dayEl.style.background = `linear-gradient(to bottom, ${dayColor} 50%, ${nightColor} 50%)`;
+    // Aplicar gradiente unificado en diagonal usando la paleta de colores premium
+    dayEl.style.background = getDayBackgroundStyle(dayReserved, nightReserved, isSpecialDay);
 
     dayEl.innerHTML = `<span class="day-number">${day}</span>`;
 
