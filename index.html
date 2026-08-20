@@ -230,12 +230,16 @@
       </div>
 
       <!-- Leyenda del Calendario -->
-      <div class="calendar-legend">
-        <span class="legend-item"><span class="legend-dot day-avail"></span>Mañana Disponible (Amarillo)</span>
-        <span class="legend-item"><span class="legend-dot night-avail"></span>Noche Disponible (Gris)</span>
-        <span class="legend-item"><span class="legend-dot booked-deposit"></span>Día Ocupado Común (Naranja)</span>
-        <span class="legend-item"><span class="legend-dot booked-full"></span>Día Feriado / Fin de Semana Ocupado (Rojo)</span>
-        <span class="legend-item"><span style="color: #f87171; font-weight: 800; font-size: 13px; margin-right: 4px;">12</span>Día Feriado / Fin de Semana</span>
+      <div class="calendar-legend" style="display: flex; flex-direction: column; gap: 8px; font-size: 12px; margin-top: 15px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+        <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+          <span class="legend-item" style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #a7f3d0; border: 1px solid rgba(255,255,255,0.15);"></span> Día Libre (Redondo)</span>
+          <span class="legend-item" style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #fca5a5; border: 1px solid rgba(255,255,255,0.15);"></span> Día Reservado (Cuadrado)</span>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
+          <span class="legend-item" style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: linear-gradient(135deg, #a7f3d0 50%, #bae6fd 50%); border: 1px solid rgba(255,255,255,0.15);"></span> Día Hábil Disponible (Verde/Celeste)</span>
+          <span class="legend-item" style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: linear-gradient(135deg, #fde68a 50%, #fed7aa 50%); border: 1px solid rgba(255,255,255,0.15);"></span> Finde/Feriado Disponible (Amarillo/Naranja)</span>
+          <span class="legend-item" style="display: inline-flex; align-items: center; gap: 6px;"><span style="display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 1.5px dashed #ef4444; background: #dc2626; color: white; font-size: 8px; font-weight: 800; line-height: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center;">F</span> Día Feriado</span>
+        </div>
       </div>
 
       <!-- Detalle de Turnos del Día Seleccionado -->

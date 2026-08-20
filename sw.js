@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quincho-cache-v12';
+const CACHE_NAME = 'quincho-cache-v14';
 const ASSETS = [
   './',
   './index.html',

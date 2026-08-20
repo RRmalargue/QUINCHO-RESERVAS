@@ -739,6 +739,15 @@ async function renderCalendar() {
     // Aplicar gradiente unificado en diagonal usando la paleta de colores premium
     dayEl.style.background = getDayBackgroundStyle(dayReserved, nightReserved, isSpecialDay);
 
+    // Asignar clase de forma según si está alquilado (cuadrado) o libre (redondo)
+    if (dayReserved || nightReserved) {
+      dayEl.classList.add("day-rented");
+      dayEl.classList.remove("day-free");
+    } else {
+      dayEl.classList.add("day-free");
+      dayEl.classList.remove("day-rented");
+    }
+
     dayEl.innerHTML = `<span class="day-number">${day}</span>`;
 
     // Si es el día seleccionado actualmente
@@ -1830,6 +1839,15 @@ async function renderAdminCalendar() {
 
     // Aplicar gradiente unificado en diagonal usando la paleta de colores premium
     dayEl.style.background = getDayBackgroundStyle(dayReserved, nightReserved, isSpecialDay);
+
+    // Asignar clase de forma según si está alquilado (cuadrado) o libre (redondo)
+    if (dayReserved || nightReserved) {
+      dayEl.classList.add("day-rented");
+      dayEl.classList.remove("day-free");
+    } else {
+      dayEl.classList.add("day-free");
+      dayEl.classList.remove("day-rented");
+    }
 
     dayEl.innerHTML = `<span class="day-number">${day}</span>`;
 

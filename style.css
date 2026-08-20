@@ -654,6 +654,14 @@ h1, h2, h3, h4 {
   font-weight: 800;
 }
 
+/* Días libres = Redondos. Días alquilados = Cuadrados */
+.calendar-day.day-free {
+  border-radius: 50% !important;
+}
+.calendar-day.day-rented {
+  border-radius: 6px !important;
+}
+
 .calendar-day.selected {
   border-color: var(--accent) !important;
   box-shadow: 0 0 10px var(--accent-light);
