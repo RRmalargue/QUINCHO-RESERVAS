@@ -835,6 +835,24 @@ function showDayDetails(dateStr) {
 
   // Mostrar el panel de detalles
   document.getElementById("day-details-box").classList.remove("hidden");
+
+  // Mostrar mensaje emergente (Toast) al cliente sobre la disponibilidad del día
+  let msg = "";
+  let type = "success";
+  if (!dayReserved && !nightReserved) {
+    msg = "¡Ambos turnos están disponibles! 🟢";
+    type = "success";
+  } else if (dayReserved && nightReserved) {
+    msg = "Lo lamento, ambos turnos ya están alquilados. 🔴";
+    type = "danger";
+  } else if (dayReserved) {
+    msg = "El turno Noche está disponible (Mañana ya alquilado). 🟡";
+    type = "warning";
+  } else {
+    msg = "El turno Mañana está disponible (Noche ya alquilado). 🟡";
+    type = "warning";
+  }
+  showToast(msg, type);
 }
 
 // --- FORMULARIO DE RESERVA (WHATSAPP) ---
@@ -2337,5 +2355,33 @@ function showPostBookingModal(booking) {
 function closePostBookingModal() {
   const modal = document.getElementById("post-booking-modal");
   if (modal) modal.classList.add("hidden");
+}
+
+// --- ALERTA FLOTANTE INTERACTIVA (TOAST) ---
+function showToast(message, type = "success") {
+  const container = document.getElementById("toast-container");
+  if (!container) return;
+  
+  // Limpiar notificaciones previas para que no se encimen
+  container.innerHTML = "";
+  
+  const toast = document.createElement("div");
+  toast.className = `toast-item toast-${type}`;
+  toast.innerText = message;
+  
+  container.appendChild(toast);
+  
+  // Forzar reflujo de la animación
+  toast.offsetHeight;
+  
+  toast.classList.add("show");
+  
+  // Ocultar y eliminar después de 3.5 segundos
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => {
+      toast.remove();
+    }, 400);
+  }, 3500);
 }
 
