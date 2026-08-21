@@ -1250,32 +1250,12 @@ async function handleAdminManualBooking(event) {
     await deleteBooking(editOriginalDate, editOriginalSlot);
     await saveBooking(newBooking);
     cancelAdminEdit();
-    alert("Reserva modificada correctamente. Abriendo Google Calendar para guardar la alerta...");
   } else {
     await saveBooking(newBooking);
-    alert("Reserva manual agregada correctamente. Abriendo Google Calendar para guardar la alerta...");
   }
 
-  // Generar y abrir automáticamente Google Calendar
-  const dateClean = date.replace(/-/g, '');
-  let startGCal = "";
-  let endGCal = "";
-  if (slot === "day") {
-    startGCal = `${dateClean}T100000`;
-    endGCal = `${dateClean}T190000`;
-  } else {
-    startGCal = `${dateClean}T203000`;
-    const nextDay = new Date(date + "T12:00:00");
-    nextDay.setDate(nextDay.getDate() + 1);
-    const nextDayClean = `${nextDay.getFullYear()}${String(nextDay.getMonth() + 1).padStart(2, '0')}${String(nextDay.getDate()).padStart(2, '0')}`;
-    endGCal = `${nextDayClean}T043000`;
-  }
-  const gcalTitle = encodeURIComponent(`Reserva: ${name}`);
-  const gcalDetails = encodeURIComponent(`Monto Total: $${totalPriceVal}\nSeña: $${depositVal}\nContacto: ${phone || ''}\nNotas: ${notesVal || ''}`);
-  const gcalLink = `https://www.google.com/calendar/render?action=TEMPLATE&text=${gcalTitle}&dates=${startGCal}/${endGCal}&details=${gcalDetails}`;
-  
-  // Abrir pestaña para guardar en Google Calendar
-  window.open(gcalLink, "_blank");
+  // Mostrar modal interactivo para enviar WhatsApp y sincronizar con Google Calendar
+  showPostBookingModal(newBooking);
 
   // Limpiar campos y refrescar
   document.getElementById("admin-name").value = "";
@@ -2271,5 +2251,91 @@ function closeWifiModalOnBackdrop(event) {
   if (event.target.id === "wifi-modal") {
     closeWifiModal();
   }
+}
+
+// --- MODAL DE OPCIONES POST-RESERVA (WHATSAPP Y GOOGLE CALENDAR) ---
+function showPostBookingModal(booking) {
+  const modal = document.getElementById("post-booking-modal");
+  if (!modal) return;
+  
+  const formattedDate = booking.date.split("-").reverse().join("/");
+  const slotLabel = booking.slot === "day" ? "Mañana (10:00 hs a 19:00 hs)" : "Noche (20:30 hs a 04:30 hs)";
+  const resta = booking.totalPrice - booking.deposit;
+  
+  // 1. Generar Mensaje de WhatsApp
+  let waMessage = `¡Hola ${booking.name}! Su reserva en *Quincho Las 3R* ha sido confirmada con éxito. Aquí tiene el comprobante:\n\n` +
+                  `📅 *Fecha:* ${formattedDate}\n` +
+                  `⏰ *Turno:* ${slotLabel}\n` +
+                  `💰 *Monto Total:* $${booking.totalPrice}\n` +
+                  `💵 *Seña Abonada:* $${booking.deposit}\n` +
+                  `💳 *Resta Abonar:* ${resta > 0 ? `$${resta}` : '¡Totalmente pagado!'}\n`;
+                  
+  if (booking.notes) {
+    waMessage += `📝 *Notas:* ${booking.notes}\n`;
+  }
+  waMessage += `\n¡Gracias por elegirnos! Nos vemos pronto. 🏡✨`;
+  
+  // Normalizar teléfono
+  let cleanPhone = booking.phone ? booking.phone.replace(/\D/g, '') : "";
+  if (cleanPhone.length === 10) {
+    cleanPhone = "549" + cleanPhone;
+  } else if (cleanPhone.length === 11 && cleanPhone.startsWith("0")) {
+    cleanPhone = "549" + cleanPhone.substring(1);
+  } else if (cleanPhone.length === 11 && cleanPhone.startsWith("9")) {
+    cleanPhone = "54" + cleanPhone;
+  } else if (cleanPhone.length === 12 && cleanPhone.startsWith("54")) {
+    cleanPhone = "549" + cleanPhone.substring(2);
+  }
+  
+  const waReceiptLink = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMessage)}`;
+  
+  // 2. Generar Enlace de Google Calendar
+  const dateClean = booking.date.replace(/-/g, '');
+  let startGCal = "";
+  let endGCal = "";
+  if (booking.slot === "day") {
+    startGCal = `${dateClean}T100000`;
+    endGCal = `${dateClean}T190000`;
+  } else {
+    startGCal = `${dateClean}T203000`;
+    const nextDay = new Date(booking.date + "T12:00:00");
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextDayClean = `${nextDay.getFullYear()}${String(nextDay.getMonth() + 1).padStart(2, '0')}${String(nextDay.getDate()).padStart(2, '0')}`;
+    endGCal = `${nextDayClean}T043000`;
+  }
+  const gcalTitle = encodeURIComponent(`Reserva: ${booking.name}`);
+  const gcalDetails = encodeURIComponent(`Monto Total: $${booking.totalPrice}\nSeña: $${booking.deposit}\nContacto: ${booking.phone || ''}\nNotas: ${booking.notes || ''}`);
+  const gcalLink = `https://www.google.com/calendar/render?action=TEMPLATE&text=${gcalTitle}&dates=${startGCal}/${endGCal}&details=${gcalDetails}`;
+  
+  // 3. Asignar los eventos de clic
+  const btnWA = document.getElementById("btn-post-booking-wa");
+  if (btnWA) {
+    if (cleanPhone) {
+      btnWA.disabled = false;
+      btnWA.innerHTML = `<i class="fa-brands fa-whatsapp"></i> Enviar Comprobante WhatsApp`;
+      btnWA.onclick = () => {
+        window.open(waReceiptLink, "_blank");
+      };
+    } else {
+      btnWA.disabled = true;
+      btnWA.innerHTML = `<i class="fa-brands fa-whatsapp"></i> WhatsApp (Sin Teléfono)`;
+      btnWA.onclick = null;
+    }
+  }
+  
+  const btnGCal = document.getElementById("btn-post-booking-gcal");
+  if (btnGCal) {
+    btnGCal.onclick = () => {
+      window.open(gcalLink, "_blank");
+    };
+  }
+  
+  // Mostrar modal
+  modal.classList.remove("hidden");
+}
+
+function closePostBookingModal() {
+  const modal = document.getElementById("post-booking-modal");
+  if (modal) modal.classList.add("hidden");
 }
 
