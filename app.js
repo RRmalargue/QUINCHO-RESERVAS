@@ -2357,31 +2357,28 @@ function closePostBookingModal() {
   if (modal) modal.classList.add("hidden");
 }
 
-// --- ALERTA FLOTANTE INTERACTIVA (TOAST) ---
+// --- NOTIFICACIÓN INTEGRADA DE DISPONIBILIDAD (TOAST DE CALENDARIO) ---
+let toastTimeoutId = null;
+
 function showToast(message, type = "success") {
-  const container = document.getElementById("toast-container");
-  if (!container) return;
+  const box = document.getElementById("calendar-toast-box");
+  if (!box) return;
   
-  // Limpiar notificaciones previas para que no se encimen
-  container.innerHTML = "";
+  // Asignar clases y contenido
+  box.className = `calendar-toast-box calendar-toast-${type}`;
+  box.innerText = message;
   
-  const toast = document.createElement("div");
-  toast.className = `toast-item toast-${type}`;
-  toast.innerText = message;
+  // Mostrar removiendo hidden
+  box.classList.remove("hidden");
   
-  container.appendChild(toast);
+  // Limpiar temporizador previo si existe
+  if (toastTimeoutId) {
+    clearTimeout(toastTimeoutId);
+  }
   
-  // Forzar reflujo de la animación
-  toast.offsetHeight;
-  
-  toast.classList.add("show");
-  
-  // Ocultar y eliminar después de 3.5 segundos
-  setTimeout(() => {
-    toast.classList.remove("show");
-    setTimeout(() => {
-      toast.remove();
-    }, 400);
+  // Ocultar automáticamente a los 3.5 segundos
+  toastTimeoutId = setTimeout(() => {
+    box.classList.add("hidden");
   }, 3500);
 }
 
