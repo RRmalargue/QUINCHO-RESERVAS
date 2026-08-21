@@ -661,7 +661,7 @@ function getDayBackgroundStyle(dayReserved, nightReserved, isSpecialDay) {
   let morningColor = "";
   let nightColor = "";
 
-  // 1. Color para el turno Mañana (izquierda/arriba)
+  // 1. Color para el turno Día (izquierda/arriba)
   if (dayReserved) {
     morningColor = "#fca5a5"; // Rojo pastel (Ocupado)
   } else {
@@ -799,7 +799,7 @@ function showDayDetails(dateStr) {
   const dayReserved = dayBookings.find(b => b.slot === "day");
   const nightReserved = dayBookings.find(b => b.slot === "night");
 
-  // Configurar Turno Mañana
+  // Configurar Turno Día
   const dayStatus = document.getElementById("slot-day-status");
   const dayBtn = document.getElementById("slot-day-btn");
   if (dayReserved) {
@@ -846,10 +846,10 @@ function showDayDetails(dateStr) {
     msg = "Lo lamento, ambos turnos ya están alquilados. 🔴";
     type = "danger";
   } else if (dayReserved) {
-    msg = "El turno Noche está disponible (Mañana ya alquilado). 🟡";
+    msg = "El turno Noche está disponible (Día ya alquilado). 🟡";
     type = "warning";
   } else {
-    msg = "El turno Mañana está disponible (Noche ya alquilado). 🟡";
+    msg = "El turno Día está disponible (Noche ya alquilado). 🟡";
     type = "warning";
   }
   showToast(msg, type);
@@ -859,7 +859,7 @@ function showDayDetails(dateStr) {
 function openBookingForm(slot) {
   if (!selectedDateStr) return;
   
-  const slotName = slot === "day" ? "Turno Mañana (10:00 a 19:00 hs)" : "Turno Noche (20:30 a 04:30 hs)";
+  const slotName = slot === "day" ? "Turno Día (10:00 a 19:00 hs)" : "Turno Noche (20:30 a 04:30 hs)";
   
   // Llenar campos invisibles/lectura
   document.getElementById("form-date").value = selectedDateStr;
@@ -886,7 +886,7 @@ function handleBookingSubmit(event) {
   const guests = document.getElementById("client-guests").value || "No especificado";
   const notes = document.getElementById("client-notes").value || "Ninguna";
 
-  const slotLabel = slot === "day" ? "Mañana (10:00 a 19:00 hs)" : "Noche (20:30 a 04:30 hs)";
+  const slotLabel = slot === "day" ? "Día (10:00 a 19:00 hs)" : "Noche (20:30 a 04:30 hs)";
   const formattedDate = date.split("-").reverse().join("/");
 
   // Construir mensaje de WhatsApp
@@ -972,7 +972,7 @@ function checkUpcomingBookingsAlerts() {
     if (b.date !== todayStr && b.date !== tomorrowStr) return false;
 
     // Calcular cuántas horas faltan
-    // Turno mañana empieza a las 10:00. Turno noche a las 20:30.
+    // Turno Día empieza a las 10:00. Turno noche a las 20:30.
     const [y, m, d] = b.date.split("-").map(Number);
     const slotHour = b.slot === "day" ? 10 : 20.5;
     const slotMin = b.slot === "day" ? 0 : 30;
@@ -991,7 +991,7 @@ function checkUpcomingBookingsAlerts() {
   // Generar HTML para cada alerta
   upcoming.forEach(b => {
     const formattedDate = b.date.split("-").reverse().join("/");
-    const slotLabel = b.slot === "day" ? "Mañana (10:00 hs)" : "Noche (20:30 hs)";
+    const slotLabel = b.slot === "day" ? "Día (10:00 hs)" : "Noche (20:30 hs)";
     
     // Calcular horas restantes
     const [y, m, d] = b.date.split("-").map(Number);
@@ -1037,7 +1037,7 @@ function checkUpcomingBookingsAlerts() {
       cleanPhone = "549" + cleanPhone.substring(2);
     }
 
-    const reminderText = `¡Hola ${b.name}! Te recordamos tu reserva en Quincho Las 3R para hoy/mañana (${formattedDate}) en el turno ${b.slot === 'day' ? 'Mañana' : 'Noche'}. ¡Te esperamos! 🏡`;
+    const reminderText = `¡Hola ${b.name}! Te recordamos tu reserva en Quincho Las 3R para hoy/mañana (${formattedDate}) en el turno ${b.slot === 'day' ? 'Día' : 'Noche'}. ¡Te esperamos! 🏡`;
     const waReminderLink = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(reminderText)}` : "#";
 
     const alertCard = document.createElement("div");
@@ -1142,7 +1142,7 @@ function renderAdminBookings() {
   sortedBookings.forEach(b => {
     const tr = document.createElement("tr");
     const formattedDate = b.date.split("-").reverse().join("/");
-    const slotLabel = b.slot === "day" ? "Mañana" : "Noche";
+    const slotLabel = b.slot === "day" ? "Día" : "Noche";
 
     // Formatear valores financieros
     const totalPrice = b.totalPrice !== undefined ? `$${b.totalPrice}` : "-";
@@ -1214,7 +1214,7 @@ function renderAdminBookings() {
 
 // Eliminar reserva desde Admin
 async function deleteBookingAdmin(date, slot) {
-  if (confirm(`¿Seguro que deseas eliminar la reserva del ${date.split("-").reverse().join("/")} (${slot === 'day' ? 'Mañana' : 'Noche'})?`)) {
+  if (confirm(`¿Seguro que deseas eliminar la reserva del ${date.split("-").reverse().join("/")} (${slot === 'day' ? 'Día' : 'Noche'})?`)) {
     await deleteBooking(date, slot);
     renderAdminBookings();
     renderAdminCalendar(); // Refrescar calendario admin
@@ -2127,7 +2127,7 @@ async function deleteCurrentEditBooking() {
   if (!editOriginalDate || !editOriginalSlot) return;
   
   const formattedDate = editOriginalDate.split("-").reverse().join("/");
-  const slotLabel = editOriginalSlot === 'day' ? 'Mañana' : 'Noche';
+  const slotLabel = editOriginalSlot === 'day' ? 'Día' : 'Noche';
   
   if (confirm(`¿Seguro que deseas eliminar/cancelar la reserva del ${formattedDate} (${slotLabel})?`)) {
     await deleteBooking(editOriginalDate, editOriginalSlot);
@@ -2277,7 +2277,7 @@ function showPostBookingModal(booking) {
   if (!modal) return;
   
   const formattedDate = booking.date.split("-").reverse().join("/");
-  const slotLabel = booking.slot === "day" ? "Mañana (10:00 hs a 19:00 hs)" : "Noche (20:30 hs a 04:30 hs)";
+  const slotLabel = booking.slot === "day" ? "Día (10:00 hs a 19:00 hs)" : "Noche (20:30 hs a 04:30 hs)";
   const resta = booking.totalPrice - booking.deposit;
   
   // 1. Generar Mensaje de WhatsApp
