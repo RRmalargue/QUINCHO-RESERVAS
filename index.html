@@ -160,9 +160,9 @@
           Para garantizar una excelente estadía y cuidar las instalaciones, te pedimos leer nuestro reglamento de convivencia antes de asistir al quincho.
         </p>
         <div style="text-align: center;">
-          <a href="./assets/normas.jpg" target="_blank" class="btn btn-primary" style="margin: 0; width: 100%; max-width: 250px;">
-            <i class="fa-solid fa-image"></i> Leer Reglamento
-          </a>
+          <button onclick="openRulesModal()" class="btn btn-primary" style="margin: 0; width: 100%; max-width: 250px;">
+            <i class="fa-solid fa-file-invoice"></i> Leer Reglamento
+          </button>
         </div>
       </div>
 
@@ -718,6 +718,24 @@
     </div>
     <div class="pwa-banner-actions" style="margin-top: 8px;">
       <button id="pwa-ios-close" class="btn btn-outline-primary btn-sm btn-block" style="width: 100%; padding: 8px; font-size: 12px; margin: 0;">Entendido</button>
+    </div>
+  </div>
+
+  <!-- Modal de Normas de Convivencia -->
+  <div id="rules-modal" class="modal-backdrop hidden" onclick="closeRulesModalOnBackdrop(event)">
+    <div class="gallery-modal-content card" style="max-width: 480px; text-align: center; padding: 20px; position: relative;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
+        <h3 style="margin: 0; color: var(--accent); font-size: 18px;"><i class="fa-solid fa-scale-balanced"></i> Normas de Convivencia</h3>
+        <button class="close-btn" onclick="closeRulesModal()" style="background: transparent; border: none; color: var(--text-primary); font-size: 20px; cursor: pointer; padding: 0;"><i class="fa-solid fa-times"></i></button>
+      </div>
+      
+      <div style="max-height: 65vh; overflow-y: auto; border-radius: 8px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);">
+        <img src="./assets/normas.jpg" alt="Reglamento de Convivencia" style="display: block; width: 100%; height: auto; border-radius: 8px;">
+      </div>
+      
+      <button class="btn btn-outline-primary btn-block" onclick="closeRulesModal()" style="margin-top: 15px; margin-bottom: 0; width: 100%;">
+        Entendido / Cerrar
+      </button>
     </div>
   </div>
 

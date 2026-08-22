@@ -2396,3 +2396,20 @@ function openGoogleCalendarOnDate(dateStr) {
   window.open(calendarUrl, "_blank");
 }
 
+// --- CONTROLES DEL MODAL DE NORMAS DE CONVIVENCIA ---
+function openRulesModal() {
+  const modal = document.getElementById("rules-modal");
+  if (modal) modal.classList.remove("hidden");
+}
+
+function closeRulesModal() {
+  const modal = document.getElementById("rules-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function closeRulesModalOnBackdrop(event) {
+  if (event.target.id === "rules-modal") {
+    closeRulesModal();
+  }
+}
+
