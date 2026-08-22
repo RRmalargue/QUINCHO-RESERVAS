@@ -469,6 +469,12 @@ async function initApp() {
     });
   }
 
+  // Configurar mes actual por defecto en el selector financiero
+  const monthSelect = document.getElementById("finance-month");
+  if (monthSelect) {
+    monthSelect.value = new Date().getMonth().toString();
+  }
+
   // Renderizar listados y balances financieros
   renderExpenses();
   populateFinanceYears();
@@ -1479,35 +1485,59 @@ function updateFinanceSummary() {
   if (cleaningNoteEl) {
     cleaningNoteEl.innerHTML = `<i class="fa-solid fa-broom"></i> Gasto limpieza automático incluido: <strong>$${totalCleaningExpenses.toLocaleString()}</strong> (${pastBookings.length} de ${filteredBookings.length} reservas realizadas/hoy x $${cleaningCost.toLocaleString()})`;
   }
+
+  // Refrescar el listado de gastos en base a los mismos filtros
+  // Pero usamos un flag para evitar recursiones si es necesario (no lo es porque renderExpenses no llama de vuelta)
+  // Añadimos una comprobación básica para evitar llamadas repetidas durante la inicialización
+  if (typeof renderExpenses === "function") {
+    // Si renderExpenses ya está declarada, la invocamos
+    renderExpenses();
+  }
 }
 
-// Registrar un Gasto desde el formulario admin
+// Registrar o modificar un Gasto desde el formulario admin
 function handleAdminAddExpense(event) {
   event.preventDefault();
+  const editIdVal = document.getElementById("expense-edit-id").value;
   const date = document.getElementById("expense-date").value;
   const category = document.getElementById("expense-category").value;
   const desc = document.getElementById("expense-desc").value.trim();
   const amount = parseInt(document.getElementById("expense-amount").value) || 0;
   
-  const newExpense = {
-    id: Date.now(),
-    date,
-    category,
-    desc,
-    amount
-  };
+  if (editIdVal) {
+    // Modo Edición
+    const expenseId = parseInt(editIdVal);
+    const idx = expenses.findIndex(e => e.id === expenseId);
+    if (idx !== -1) {
+      expenses[idx].date = date;
+      expenses[idx].category = category;
+      expenses[idx].desc = desc;
+      expenses[idx].amount = amount;
+    }
+    // Salir del modo edición
+    cancelExpenseEdit();
+    alert("Gasto modificado correctamente.");
+  } else {
+    // Modo Creación
+    const newExpense = {
+      id: Date.now(),
+      date,
+      category,
+      desc,
+      amount
+    };
+    expenses.push(newExpense);
+    
+    // Limpiar campos del formulario (solo desc y monto para dejar la fecha del día lista)
+    document.getElementById("expense-desc").value = "";
+    document.getElementById("expense-amount").value = "";
+    alert("Gasto registrado correctamente.");
+  }
   
-  expenses.push(newExpense);
   saveExpenses();
-  
-  // Limpiar campos del formulario
-  document.getElementById("expense-desc").value = "";
-  document.getElementById("expense-amount").value = "";
-  
   renderExpenses();
   updateFinanceSummary();
   populateFinanceYears();
-  alert("Gasto registrado correctamente.");
 }
 
 // Eliminar un Gasto
@@ -1522,17 +1552,34 @@ function deleteExpense(id) {
   }
 }
 
-// Renderizar la tabla de listado de gastos
+// Renderizar la tabla de listado de gastos filtrado por mes y año
 function renderExpenses() {
   const tbody = document.getElementById("admin-expenses-list");
   if (!tbody) return;
   tbody.innerHTML = "";
   
+  const yearSelect = document.getElementById("finance-year");
+  const monthSelect = document.getElementById("finance-month");
+  let filtered = [...expenses];
+
+  if (yearSelect && monthSelect) {
+    const yearVal = parseInt(yearSelect.value);
+    const monthVal = monthSelect.value; // "all" o índice "0"-"11"
+
+    filtered = expenses.filter(e => {
+      if (!e || !e.date || typeof e.date !== 'string') return false;
+      const [y, m, d] = e.date.split("-").map(Number);
+      if (y !== yearVal) return false;
+      if (monthVal !== "all" && (m - 1) !== parseInt(monthVal)) return false;
+      return true;
+    });
+  }
+  
   // Ordenar gastos por fecha descendiente
-  const sortedExpenses = [...expenses].sort((a, b) => b.date.localeCompare(a.date));
+  const sortedExpenses = filtered.sort((a, b) => b.date.localeCompare(a.date));
   
   if (sortedExpenses.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-secondary">No hay gastos registrados en el historial.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-secondary">No hay gastos registrados en este período.</td></tr>`;
     return;
   }
   
@@ -1546,7 +1593,10 @@ function renderExpenses() {
       <td>${e.desc}</td>
       <td style="font-weight: 600; color: var(--danger)">$${e.amount}</td>
       <td>
-        <button class="btn btn-sm btn-outline-danger" onclick="deleteExpense(${e.id})">
+        <button class="btn btn-sm btn-outline-primary" onclick="editExpense(${e.id})" style="margin-right: 4px;" title="Editar Gasto">
+          <i class="fa-regular fa-pen-to-square"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteExpense(${e.id})" title="Eliminar Gasto">
           <i class="fa-regular fa-trash-can"></i>
         </button>
       </td>
@@ -2411,5 +2461,54 @@ function closeRulesModalOnBackdrop(event) {
   if (event.target.id === "rules-modal") {
     closeRulesModal();
   }
+}
+
+// --- EDICIÓN DE GASTOS ---
+function editExpense(id) {
+  const e = expenses.find(x => x.id === id);
+  if (!e) return;
+  
+  // Rellenar formulario con los datos del gasto
+  document.getElementById("expense-edit-id").value = e.id;
+  document.getElementById("expense-date").value = e.date;
+  document.getElementById("expense-category").value = e.category;
+  document.getElementById("expense-desc").value = e.desc;
+  document.getElementById("expense-amount").value = e.amount;
+  
+  // Cambiar textos del formulario
+  document.getElementById("expense-form-title").innerText = "Editar Gasto";
+  document.getElementById("expense-submit-btn").innerText = "Guardar Cambios";
+  
+  // Mostrar botón volver
+  const cancelBtn = document.getElementById("expense-cancel-edit-btn");
+  if (cancelBtn) cancelBtn.classList.remove("hidden");
+  
+  // Hacer scroll hacia el formulario para facilitar edición en móviles
+  const formEl = document.getElementById("admin-expense-form");
+  if (formEl) {
+    formEl.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
+function cancelExpenseEdit() {
+  // Limpiar campos
+  document.getElementById("expense-edit-id").value = "";
+  
+  // Restablecer fecha al día de hoy local
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  document.getElementById("expense-date").value = todayStr;
+  
+  document.getElementById("expense-category").value = "Limpieza";
+  document.getElementById("expense-desc").value = "";
+  document.getElementById("expense-amount").value = "";
+  
+  // Restablecer textos
+  document.getElementById("expense-form-title").innerText = "Registrar Nuevo Gasto";
+  document.getElementById("expense-submit-btn").innerText = "Agregar Gasto";
+  
+  // Ocultar botón volver
+  const cancelBtn = document.getElementById("expense-cancel-edit-btn");
+  if (cancelBtn) cancelBtn.classList.add("hidden");
 }
 

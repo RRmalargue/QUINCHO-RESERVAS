@@ -532,8 +532,9 @@
         <div class="grid-admin">
           <!-- Registrar Gasto -->
           <div class="card">
-            <h3><i class="fa-solid fa-receipt"></i> Registrar Nuevo Gasto</h3>
+            <h3><i class="fa-solid fa-receipt"></i> <span id="expense-form-title">Registrar Nuevo Gasto</span></h3>
             <form id="admin-expense-form" onsubmit="handleAdminAddExpense(event)">
+              <input type="hidden" id="expense-edit-id">
               <div class="form-group">
                 <label for="expense-date">Fecha</label>
                 <input type="date" id="expense-date" required class="form-control">
@@ -555,7 +556,10 @@
                 <label for="expense-amount">Monto ($)</label>
                 <input type="number" id="expense-amount" required placeholder="Ej: 3500" class="form-control" min="1">
               </div>
-              <button type="submit" class="btn btn-primary btn-block">Agregar Gasto</button>
+              <div style="display: flex; gap: 8px; margin-top: 10px;">
+                <button type="submit" id="expense-submit-btn" class="btn btn-primary btn-block" style="flex: 2; margin: 0;">Agregar Gasto</button>
+                <button type="button" id="expense-cancel-edit-btn" class="btn btn-outline-danger hidden" onclick="cancelExpenseEdit()" style="flex: 1; margin: 0; padding: 12px 10px;">Volver</button>
+              </div>
             </form>
           </div>
 
