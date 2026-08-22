@@ -1228,6 +1228,10 @@ async function deleteBookingAdmin(date, slot) {
     if (selectedDateStr === date) {
       showDayDetails(date);
     }
+
+    // Abrir Google Calendar en esa fecha para borrar el evento manualmente
+    alert("Reserva cancelada en la base de datos. Se abrirá tu Google Calendar en esa fecha para que puedas borrar el evento.");
+    openGoogleCalendarOnDate(date);
   }
 }
 
@@ -2130,6 +2134,7 @@ async function deleteCurrentEditBooking() {
   const slotLabel = editOriginalSlot === 'day' ? 'Día' : 'Noche';
   
   if (confirm(`¿Seguro que deseas eliminar/cancelar la reserva del ${formattedDate} (${slotLabel})?`)) {
+    const targetDate = editOriginalDate;
     await deleteBooking(editOriginalDate, editOriginalSlot);
     cancelAdminEdit();
     renderAdminBookings();
@@ -2137,7 +2142,8 @@ async function deleteCurrentEditBooking() {
     renderCalendar();
     updateFinanceSummary();
     populateFinanceYears();
-    alert("Reserva cancelada correctamente.");
+    alert("Reserva cancelada en la base de datos. Se abrirá tu Google Calendar en esa fecha para que puedas borrar el evento.");
+    openGoogleCalendarOnDate(targetDate);
   }
 }
 
@@ -2380,5 +2386,13 @@ function showToast(message, type = "success") {
   toastTimeoutId = setTimeout(() => {
     box.classList.add("hidden");
   }, 3500);
+}
+
+// --- REDIRECCIÓN PARA ELIMINACIÓN DE EVENTO EN GOOGLE CALENDAR ---
+function openGoogleCalendarOnDate(dateStr) {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  // Redirigir al día específico del calendario en formato YYYY/MM/DD
+  const calendarUrl = `https://calendar.google.com/calendar/r/day/${year}/${month}/${day}`;
+  window.open(calendarUrl, "_blank");
 }
 
