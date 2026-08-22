@@ -505,6 +505,9 @@ async function loadBookings() {
         bookings = await response.json();
         console.log("Reservas cargadas desde Supabase:", bookings);
         localStorage.setItem("local_bookings_backup", JSON.stringify(bookings));
+        if (typeof updateInstallationsCountDisplay === "function") {
+          updateInstallationsCountDisplay();
+        }
         return;
       }
     } catch (e) {
@@ -517,6 +520,9 @@ async function loadBookings() {
   if (localData) {
     bookings = JSON.parse(localData);
     console.log("Reservas cargadas desde LocalStorage");
+    if (typeof updateInstallationsCountDisplay === "function") {
+      updateInstallationsCountDisplay();
+    }
     return;
   }
 
@@ -542,6 +548,9 @@ async function loadBookings() {
     bookings = defaultMockBookings;
   }
   localStorage.setItem("local_bookings_backup", JSON.stringify(bookings));
+  if (typeof updateInstallationsCountDisplay === "function") {
+    updateInstallationsCountDisplay();
+  }
 }
 
 // Guardar reserva (Local o Supabase)
@@ -629,7 +638,7 @@ function switchTab(sectionId) {
     document.getElementById("day-details-box").classList.add("hidden");
   } else if (sectionId === "admin-section") {
     if (localStorage.getItem("admin_logged") === "true") {
-      renderAdminBookings();
+      showAdminPanel();
     }
   }
 }
