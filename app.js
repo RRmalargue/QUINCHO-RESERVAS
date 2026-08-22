@@ -1487,11 +1487,13 @@ function updateFinanceSummary() {
   }
 
   // Refrescar el listado de gastos en base a los mismos filtros
-  // Pero usamos un flag para evitar recursiones si es necesario (no lo es porque renderExpenses no llama de vuelta)
-  // Añadimos una comprobación básica para evitar llamadas repetidas durante la inicialización
   if (typeof renderExpenses === "function") {
-    // Si renderExpenses ya está declarada, la invocamos
     renderExpenses();
+  }
+
+  // Renderizar el gráfico de barras mensual para el año seleccionado
+  if (typeof renderFinanceChart === "function") {
+    renderFinanceChart(yearVal);
   }
 }
 
@@ -2510,5 +2512,112 @@ function cancelExpenseEdit() {
   // Ocultar botón volver
   const cancelBtn = document.getElementById("expense-cancel-edit-btn");
   if (cancelBtn) cancelBtn.classList.add("hidden");
+}
+
+// --- RENDERIZADO DEL GRÁFICO DE BARRAS MENSUAL ---
+function renderFinanceChart(yearVal) {
+  const canvas = document.querySelector(".chart-canvas");
+  if (!canvas) return;
+  
+  const decryptedBookingsList = getDecryptedBookings();
+  const cleaningCost = parseInt(localStorage.getItem("cleaning_cost")) || 4000;
+  
+  // Arreglos de ingresos, gastos y ganancias de los 12 meses
+  const monthlyIncome = Array(12).fill(0);
+  const monthlyExpenses = Array(12).fill(0);
+  const monthlyProfit = Array(12).fill(0);
+  
+  // Obtener fecha de hoy para calcular limpiezas
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  
+  // 1. Acumular ingresos y costos de limpieza
+  decryptedBookingsList.forEach(b => {
+    if (!b || !b.date || typeof b.date !== 'string') return;
+    const [y, m, d] = b.date.split("-").map(Number);
+    if (y !== yearVal) return;
+    
+    const monthIndex = m - 1;
+    // Ingreso cobrado real hasta el momento (deposit + resto si corresponde, o deposit)
+    // Usamos el mismo criterio que updateFinanceSummary: 
+    // Si la reserva está saldada (b.phone === "GCal" es placeholder o calculamos en base a seña/total)
+    // Para simplificar y mantener simetría absoluta:
+    // Ingreso = deposit de la reserva (seña cobrada) + balance si se pagó completo (en el app sumamos deposit)
+    const income = Number(b.deposit) || 0;
+    monthlyIncome[monthIndex] += income;
+    
+    // Si ya concluyó, sumar limpieza
+    if (b.date <= todayStr) {
+      monthlyExpenses[monthIndex] += cleaningCost;
+    }
+  });
+  
+  // 2. Acumular gastos manuales
+  expenses.forEach(e => {
+    if (!e || !e.date || typeof e.date !== 'string') return;
+    const [y, m, d] = e.date.split("-").map(Number);
+    if (y !== yearVal) return;
+    
+    const monthIndex = m - 1;
+    monthlyExpenses[monthIndex] += (Number(e.amount) || 0);
+  });
+  
+  // 3. Calcular ganancias netas por mes
+  for (let i = 0; i < 12; i++) {
+    monthlyProfit[i] = monthlyIncome[i] - monthlyExpenses[i];
+  }
+  
+  // 4. Buscar el valor absoluto máximo para el escalado visual (mínimo 1000)
+  const maxVal = Math.max(...monthlyProfit.map(Math.abs), 1000);
+  
+  canvas.innerHTML = "";
+  
+  monthlyProfit.forEach((profit, idx) => {
+    const col = document.createElement("div");
+    col.style = "display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; position: relative; margin: 0 3px;";
+    
+    // Altura proporcional (máximo 80% para dar aire al tooltip del monto)
+    const pct = Math.min((Math.abs(profit) / maxVal) * 80, 80);
+    
+    // Barra de color
+    const bar = document.createElement("div");
+    bar.style.width = "100%";
+    bar.style.height = `${pct}%`;
+    bar.style.borderRadius = "4px 4px 0 0";
+    bar.style.transition = "height 0.4s ease";
+    bar.style.cursor = "pointer";
+    
+    if (profit >= 0) {
+      bar.style.background = "linear-gradient(to top, var(--success), #34d399)";
+    } else {
+      bar.style.background = "linear-gradient(to top, var(--danger), #f87171)";
+    }
+    
+    // Tooltip pequeño sobre la barra
+    const tooltip = document.createElement("span");
+    tooltip.innerText = profit !== 0 ? `$${Math.round(profit/1000)}k` : "$0";
+    tooltip.style = `
+      position: absolute;
+      bottom: calc(${pct}% + 4px);
+      font-size: 8px;
+      font-weight: 700;
+      color: ${profit >= 0 ? '#10b981' : '#ef4444'};
+      pointer-events: none;
+      white-space: nowrap;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 1px 3px;
+      border-radius: 4px;
+    `;
+    
+    col.appendChild(tooltip);
+    col.appendChild(bar);
+    canvas.appendChild(col);
+  });
+  
+  // Actualizar título
+  const titleEl = document.querySelector("#finance-chart-container h4");
+  if (titleEl) {
+    titleEl.innerHTML = `<i class="fa-solid fa-chart-column"></i> Evolución Mensual de Ganancia Neta (${yearVal})`;
+  }
 }
 
