@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quincho-cache-v27';
+const CACHE_NAME = 'quincho-cache-v28';
 const ASSETS = [
   './',
   './index.html',
@@ -59,9 +59,11 @@ self.addEventListener('fetch', (e) => {
         }
         return response;
       })
-      .catch(() => {
+      .catch(async () => {
         // Si falla la red (offline), recuperar del caché
-        return caches.match(e.request);
+        const cached = await caches.match(e.request);
+        if (cached) return cached;
+        return new Response('Not found', { status: 404 });
       })
   );
 });

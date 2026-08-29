@@ -245,8 +245,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- INSTALACIÓN DE APLICACIÓN PWA ---
   let deferredPrompt;
   const installBtn = document.getElementById("install-pwa-btn");
-  const pwaBanner = document.getElementById("pwa-install-banner");
-  const iosBanner = document.getElementById("pwa-ios-banner");
+  const pwaBanner = document.getElementById("pwa-install-modal");
+  const iosBanner = document.getElementById("pwa-ios-modal");
 
   // Detección de iOS (iPhone/iPad)
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
